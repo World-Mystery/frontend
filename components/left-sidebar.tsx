@@ -1,8 +1,9 @@
 "use client"
 
-import { Menu, SquarePen, Settings, X, MessageSquare, Clock, Sparkles } from "lucide-react"
+import { Menu, SquarePen, Settings, X, MessageSquare, Clock, Sparkles, Activity } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
+import Link from "next/link"
 
 const chatHistory = [
   { id: "1", title: "关于妈妈血压的咨询", date: "今天" },
@@ -81,8 +82,8 @@ export function LeftSidebar({ onNewChat }: LeftSidebarProps) {
           </button>
         </div>
 
-        {/* New chat button */}
-        <div className="px-3 pb-2 pt-3">
+        {/* Action buttons */}
+        <div className="space-y-2 px-3 pb-2 pt-3">
           <button
             onClick={() => {
               onNewChat()
@@ -93,6 +94,14 @@ export function LeftSidebar({ onNewChat }: LeftSidebarProps) {
             <SquarePen className="h-4 w-4 text-primary" />
             新建对话
           </button>
+          <Link
+            href="/health-events"
+            onClick={() => setExpanded(false)}
+            className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            <Activity className="h-4 w-4 text-primary" />
+            健康事件
+          </Link>
         </div>
 
         {/* Chat history */}
