@@ -4,6 +4,7 @@ import { TopNav } from "@/components/top-nav"
 import { LeftSidebar } from "@/components/left-sidebar"
 import { ChatArea } from "@/components/chat-area"
 import { DashboardView } from "@/components/dashboard/dashboard-view"
+import { HealthEventsView } from "@/components/health-events/health-events-view"
 import { useState } from "react"
 
 export default function Home() {
@@ -22,6 +23,7 @@ export default function Home() {
         {activeNav === "qa" && <LeftSidebar onNewChat={handleNewChat} />}
         {activeNav === "qa" && <ChatArea key={chatKey} />}
         {activeNav === "dashboard" && <DashboardView />}
+        {activeNav === "events" && <HealthEventsView />}
       </div>
     </div>
   )
