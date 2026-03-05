@@ -5,14 +5,18 @@ import { useState, useRef, useEffect } from "react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
-  { id: "qa", label: "健康问答", active: true },
-  { id: "dashboard", label: "健康仪表盘", active: false },
-  { id: "events", label: "健康事件", active: false },
-  { id: "plans", label: "健康计划", active: false },
+  { id: "qa", label: "健康问答" },
+  { id: "dashboard", label: "健康仪表盘" },
+  { id: "events", label: "健康事件" },
+  { id: "plans", label: "健康计划" },
 ]
 
-export function TopNav() {
-  const [activeNav, setActiveNav] = useState("qa")
+interface TopNavProps {
+  activeNav: string
+  onNavChange: (id: string) => void
+}
+
+export function TopNav({ activeNav, onNavChange }: TopNavProps) {
   const [showMemberMenu, setShowMemberMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
@@ -65,7 +69,7 @@ export function TopNav() {
         {navItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => setActiveNav(item.id)}
+            onClick={() => onNavChange(item.id)}
             className={cn(
               "relative rounded-lg px-4 py-2 text-sm font-medium transition-colors",
               activeNav === item.id
