@@ -124,22 +124,35 @@ export function AddBlockDialog({
   onOpenChange,
   defaultTime,
   onAdd,
+  existingSchedule,
 }: AddBlockDialogProps) {
   const [title, setTitle] = useState("")
   const [category, setCategory] = useState<BlockCategory>("custom")
   const [startTime, setStartTime] = useState(defaultTime)
   const [endTime, setEndTime] = useState("")
+
+  // helper to round a hh:mm string down to nearest 15-minute multiple
+  const roundToQuarter = (time: string) => {
+    const [h, m] = time.split(":").map(Number)
+    const total = h * 60 + m
+    const rounded = Math.floor(total / 15) * 15
+    const rh = Math.floor(rounded / 60)
+    const rm = rounded % 60
+    return `${String(rh).padStart(2, "0")}:${String(rm).padStart(2, "0")}`
+  }
   const [details, setDetails] = useState("")
   const [feedback, setFeedback] = useState<AiFeedback | null>(null)
   const [evaluating, setEvaluating] = useState(false)
+  const [error, setError] = useState("")
 
   useEffect(() => {
     setStartTime(defaultTime)
-    // Auto-set end time 30 min after start
+    // Auto-set end time 30 min after start, rounded to 15 min
     const [h, m] = defaultTime.split(":").map(Number)
     const totalMin = h * 60 + m + 30
-    const eh = Math.floor(totalMin / 60)
-    const em = totalMin % 60
+    const roundedMin = Math.round(totalMin / 15) * 15
+    const eh = Math.floor(roundedMin / 60)
+    const em = roundedMin % 60
     setEndTime(`${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`)
   }, [defaultTime])
 
@@ -160,6 +173,17 @@ export function AddBlockDialog({
 
   const handleSubmit = () => {
     if (!title.trim()) return
+    const timeToMin = (time: string) => {
+      const [h, m] = time.split(":").map(Number)
+      return h * 60 + m
+    }
+
+    // ensure 15-minute multiple
+    if (timeToMin(startTime) % 15 !== 0 || timeToMin(endTime) % 15 !== 0) {
+      setError("时间必须为 15 分钟的倍数")
+      return
+    }
+
     const block: ScheduleBlock = {
       id: `custom-${Date.now()}`,
       startTime,
@@ -172,6 +196,22 @@ export function AddBlockDialog({
         .filter(Boolean),
       aiGenerated: false,
     }
+    const hasOverlap = (newBlock: ScheduleBlock, existing: ScheduleBlock[]) => {
+      const newStart = timeToMin(newBlock.startTime)
+      const newEnd = timeToMin(newBlock.endTime)
+      for (const b of existing) {
+        const bStart = timeToMin(b.startTime)
+        const bEnd = timeToMin(b.endTime)
+        if (newStart < bEnd && newEnd > bStart) return true
+      }
+      return false
+    }
+
+    if (hasOverlap(block, existingSchedule)) {
+      setError("时间冲突，请选择其他时间段")
+      return
+    }
+
     onAdd(block)
     resetForm()
     onOpenChange(false)
@@ -182,6 +222,7 @@ export function AddBlockDialog({
     setCategory("custom")
     setDetails("")
     setFeedback(null)
+    setError("")
   }
 
   const handleClose = () => {
@@ -273,7 +314,8 @@ export function AddBlockDialog({
                 <input
                   type="time"
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+                  onChange={(e) => setStartTime(roundToQuarter(e.target.value))}
+                  step="900"
                   className="h-10 w-full rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-primary/30 focus:ring-1 focus:ring-primary/20"
                 />
               </div>
@@ -284,7 +326,8 @@ export function AddBlockDialog({
                 <input
                   type="time"
                   value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
+                  onChange={(e) => setEndTime(roundToQuarter(e.target.value))}
+                  step="900"
                   className="h-10 w-full rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-primary/30 focus:ring-1 focus:ring-primary/20"
                 />
               </div>
@@ -303,6 +346,11 @@ export function AddBlockDialog({
                 className="w-full resize-none rounded-xl border border-border/60 bg-background px-3 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-primary/30 focus:ring-1 focus:ring-primary/20"
               />
             </div>
+
+            {/* Error message */}
+            {error && (
+              <div className="text-red-500 text-xs">{error}</div>
+            )}
 
             {/* AI Feedback */}
             {evaluating && title.trim() && (

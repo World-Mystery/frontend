@@ -2,10 +2,11 @@ import type { ScheduleBlock } from "./types"
 
 export function getInitialSchedule(): ScheduleBlock[] {
   return [
+    // sequential 15‑minute blocks to make alignment clear
     {
       id: "b1",
       startTime: "07:00",
-      endTime: "07:30",
+      endTime: "07:15",
       title: "晨起养生",
       category: "rest",
       details: ["温水一杯 (200ml)", "5 分钟晨间拉伸", "测量血压并记录"],
@@ -13,8 +14,8 @@ export function getInitialSchedule(): ScheduleBlock[] {
     },
     {
       id: "b2",
-      startTime: "07:30",
-      endTime: "08:00",
+      startTime: "07:15",
+      endTime: "07:30",
       title: "低盐营养早餐",
       category: "meal",
       details: ["燕麦粥 (无糖)", "水煮蛋 1 个", "凉拌芹菜丝"],
@@ -22,8 +23,8 @@ export function getInitialSchedule(): ScheduleBlock[] {
     },
     {
       id: "b3",
-      startTime: "08:00",
-      endTime: "08:15",
+      startTime: "07:30",
+      endTime: "07:45",
       title: "晨间用药",
       category: "medication",
       details: ["氨氯地平 5mg x1", "阿托伐他汀 20mg x1"],
@@ -31,9 +32,9 @@ export function getInitialSchedule(): ScheduleBlock[] {
     },
     {
       id: "b4",
-      startTime: "09:30",
-      endTime: "10:00",
-      title: "户外快走 30 分钟",
+      startTime: "07:45",
+      endTime: "08:00",
+      title: "户外快走 15 分钟",
       category: "exercise",
       details: ["中等强度", "心率控制 100-120", "避免空腹运动"],
       aiGenerated: true,

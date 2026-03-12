@@ -15,23 +15,23 @@ interface Message {
 const welcomeSuggestions = [
   {
     icon: Heart,
-    title: "分析体检报告",
-    desc: "帮我分析妈妈的体检报告",
+    title: "鍒嗘瀽浣撴鎶ュ憡",
+    desc: "甯垜鍒嗘瀽濡堝鐨勪綋妫€鎶ュ憡",
   },
   {
     icon: Activity,
-    title: "血压管理建议",
-    desc: "爸爸的血压偏高，有什么建议吗？",
+    title: "琛€鍘嬬鐞嗗缓璁?,
+    desc: "鐖哥埜鐨勮鍘嬪亸楂橈紝鏈変粈涔堝缓璁紵",
   },
   {
     icon: Dumbbell,
-    title: "运动计划",
-    desc: "制定适合老年人的运动计划",
+    title: "杩愬姩璁″垝",
+    desc: "鍒跺畾閫傚悎鑰佸勾浜虹殑杩愬姩璁″垝",
   },
   {
     icon: Utensils,
-    title: "饮食建议",
-    desc: "介绍一些降低胆固醇的食物",
+    title: "楗寤鸿",
+    desc: "浠嬬粛涓€浜涢檷浣庤儐鍥洪唶鐨勯鐗?,
   },
 ]
 
@@ -102,7 +102,7 @@ export function ChatArea() {
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === assistantId
-            ? { ...msg, content: "AI 响应失败，请稍后再试。" }
+            ? { ...msg, content: "AI 鍝嶅簲澶辫触锛岃绋嶅悗鍐嶈瘯銆? }
             : msg
         )
       )
@@ -131,10 +131,10 @@ export function ChatArea() {
               <Sparkles className="h-8 w-8 text-primary/80" />
             </div>
             <h1 className="mb-2 text-balance text-center text-2xl font-semibold tracking-tight text-foreground/90">
-              {"你好，有什么可以帮你的吗？"}
+              {"浣犲ソ锛屾湁浠€涔堝彲浠ュ府浣犵殑锛?}
             </h1>
             <p className="max-w-sm text-balance text-center text-sm leading-relaxed text-muted-foreground/80">
-              {"我是你的健康助手，可以帮你分析体检报告、提供健康建议、制定康复计划。"}
+              {"鎴戞槸浣犵殑鍋ュ悍鍔╂墜锛屽彲浠ュ府浣犲垎鏋愪綋妫€鎶ュ憡銆佹彁渚涘仴搴峰缓璁€佸埗瀹氬悍澶嶈鍒?}
             </p>
           </div>
         ) : (
@@ -226,7 +226,7 @@ export function ChatArea() {
             <div className="flex items-end gap-2 rounded-[20px] border border-border/50 bg-card px-4 pt-4 pb-2 shadow-[0_1px_6px_rgba(0,0,0,0.04)] transition-all focus-within:border-primary/25 focus-within:shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
               <button
                 className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors hover:bg-accent/60"
-                aria-label="添加附件"
+                aria-label="娣诲姞闄勪欢"
               >
                 <Paperclip className="h-[18px] w-[18px] text-muted-foreground/50" />
               </button>
@@ -236,32 +236,33 @@ export function ChatArea() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="输入你的健康问题..."
+                placeholder="杈撳叆浣犵殑鍋ュ悍闂..."
                 rows={2}
                 className="max-h-40 min-h-[52px] flex-1 resize-none bg-transparent pt-1.5 pb-14 text-[14px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/50"
               />
 
               <button
                 onClick={() => handleSend()}
-                disabled={!input.trim() || isTyping}
-                className="mb-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary transition-colors hover:bg-primary/90 disabled:opacity-50"
-                aria-label="发送"
+                disabled={!input.trim()}
+                className={cn(
+                  "mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all",
+                  input.trim()
+                    ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+                    : "text-muted-foreground/30"
+                )}
+                aria-label="鍙戦€佹秷鎭?
               >
-                <Send className="h-4 w-4 text-white" />
+                <ArrowUp className="h-[18px] w-[18px]" strokeWidth={2.5} />
               </button>
             </div>
+
+            <p className="mt-2.5 text-center text-[11px] text-muted-foreground/40">
+              {"鍋ュ悍鍔╂墜鎻愪緵鐨勪俊鎭粎渚涘弬鑰冿紝涓嶈兘鏇夸唬涓撲笟鍖荤枟寤鸿"}
+            </p>
           </div>
         </div>
       </div>
     </div>
   )
 }
-
-
-
-
-
-
-
-
 

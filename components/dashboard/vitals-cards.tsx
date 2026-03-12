@@ -25,6 +25,38 @@ interface VitalItem {
 
 const initialVitals: VitalItem[] = [
   {
+    id: "age",
+    label: "年龄",
+    value: "38",
+    unit: "岁",
+    icon: Heart,
+    status: "normal",
+  },
+  {
+    id: "height",
+    label: "身高",
+    value: "172",
+    unit: "cm",
+    icon: Activity,
+    status: "normal",
+  },
+  {
+    id: "weight",
+    label: "体重",
+    value: "72",
+    unit: "kg",
+    icon: Gauge,
+    status: "normal",
+  },
+  {
+    id: "bmi",
+    label: "BMI",
+    value: "24.3",
+    unit: "kg/m²",
+    icon: Beaker,
+    status: "normal",
+  },
+  {
     id: "blood-type",
     label: "血型",
     value: "A",
@@ -33,43 +65,8 @@ const initialVitals: VitalItem[] = [
     status: "normal",
   },
   {
-    id: "bp-systolic",
-    label: "血压",
-    value: "135/88",
-    unit: "mmHg",
-    icon: Activity,
-    status: "warning",
-    subLabel: "收缩压/舒张压",
-  },
-  {
-    id: "glucose-fasting",
-    label: "血糖 (空腹)",
-    value: "5.8",
-    unit: "mmol/L",
-    icon: Beaker,
-    status: "normal",
-    subLabel: "空腹血糖",
-  },
-  {
-    id: "glucose-postprandial",
-    label: "血糖 (餐后2h)",
-    value: "8.2",
-    unit: "mmol/L",
-    icon: Beaker,
-    status: "warning",
-    subLabel: "餐后2小时",
-  },
-  {
-    id: "uric-acid",
-    label: "尿酸",
-    value: "380",
-    unit: "μmol/L",
-    icon: Gauge,
-    status: "normal",
-  },
-  {
     id: "cholesterol",
-    label: "总胆固醇",
+    label: "胆固醇",
     value: "5.4",
     unit: "mmol/L",
     icon: Heart,
@@ -77,10 +74,18 @@ const initialVitals: VitalItem[] = [
   },
   {
     id: "heart-rate",
-    label: "静息心率",
+    label: "心率",
     value: "72",
     unit: "bpm",
     icon: Heart,
+    status: "normal",
+  },
+  {
+    id: "uric-acid",
+    label: "尿酸",
+    value: "380",
+    unit: "μmol/L",
+    icon: Gauge,
     status: "normal",
   },
 ]
@@ -215,15 +220,21 @@ export function VitalsCards() {
   }
 
   return (
-    <section>
-      <div className="mb-4 flex items-center gap-2">
-        <h2 className="text-base font-semibold text-foreground">核心生理指标</h2>
-        <span className="text-xs text-muted-foreground">hover 卡片可编辑</span>
+    <section className="rounded-xl border border-border/60 bg-card">
+      <div className="border-b border-border/40 px-5 py-4">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">核心生理指标</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            卡片可编辑
+          </p>
+        </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-        {vitals.map((vital) => (
-          <EditableVitalCard key={vital.id} vital={vital} onSave={handleSave} />
-        ))}
+      <div className="p-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8">
+          {vitals.map((vital) => (
+            <EditableVitalCard key={vital.id} vital={vital} onSave={handleSave} />
+          ))}
+        </div>
       </div>
     </section>
   )

@@ -16,13 +16,10 @@ export function DashboardView() {
       <div className="mx-auto max-w-6xl px-6 py-6">
         {/* Page Header */}
         <div className="mb-6 flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-              <span>{"妈妈"}</span>
-              <ChevronRight className="h-3 w-3" />
-              <span className="text-foreground font-medium">{"健康仪表盘"}</span>
-            </div>
-            <h1 className="text-xl font-semibold text-foreground">健康仪表盘</h1>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>{"妈妈"}</span>
+            <ChevronRight className="h-3 w-3" />
+            <span className="text-foreground font-medium">{"健康仪表盘"}</span>
           </div>
           <button
             onClick={() => setShowImport(true)}

@@ -95,6 +95,19 @@ export function HealthEventsView() {
     setDialogOpen(true)
   }
 
+  const handleUpdateEntry = (eventId: string, updatedEntry: HealthEvent["timeline"][0]) => {
+    setEvents((prev) =>
+      prev.map((e) =>
+        e.id === eventId
+          ? {
+              ...e,
+              timeline: e.timeline.map((t) => (t.id === updatedEntry.id ? updatedEntry : t)),
+            }
+          : e
+      )
+    )
+  }
+
   const handleNewEvent = () => {
     setEditingEvent(null)
     setDialogOpen(true)
@@ -106,12 +119,12 @@ export function HealthEventsView() {
         {/* Page Header */}
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>{"妈妈"}</span>
               <ChevronRight className="h-3 w-3" />
               <span className="text-foreground font-medium">{"健康事件"}</span>
             </div>
-            <h1 className="text-xl font-semibold text-foreground">健康事件</h1>
+            {/* title removed per design; keep breadcrumb only */}
           </div>
           <button
             onClick={handleNewEvent}
@@ -202,12 +215,12 @@ export function HealthEventsView() {
             onEdit={handleEdit}
             onDelete={handleDelete}
             onMarkResolved={handleMarkResolved}
+            onUpdateEntry={handleUpdateEntry}
           />
         ) : (
           <TimelineView
             events={filteredEvents}
             onEdit={handleEdit}
-            onMarkResolved={handleMarkResolved}
           />
         )}
       </div>

@@ -23,11 +23,15 @@ interface EventCardProps {
   onEdit: (event: HealthEvent) => void
   onDelete: (id: string) => void
   onMarkResolved: (id: string) => void
+  onUpdateEntry: (eventId: string, entry: HealthEvent["timeline"][0]) => void
 }
 
-export function EventCard({ event, onEdit, onDelete, onMarkResolved }: EventCardProps) {
+export function EventCard({ event, onEdit, onDelete, onMarkResolved, onUpdateEntry }: EventCardProps) {
   const [expanded, setExpanded] = useState(false)
   const [showAiAdvice, setShowAiAdvice] = useState(false)
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null)
+  const [editDate, setEditDate] = useState("")
+  const [editDescription, setEditDescription] = useState("")
 
   const isActive = event.status === "active"
 
@@ -201,10 +205,74 @@ export function EventCard({ event, onEdit, onDelete, onMarkResolved }: EventCard
                         : "bg-muted-foreground/30"
                     )}
                   />
-                  <p className="text-[11px] text-muted-foreground">{entry.date}</p>
-                  <p className="mt-0.5 text-sm text-foreground leading-relaxed">
-                    {entry.description}
-                  </p>
+                  <div className="flex justify-between">
+                    <div>
+                      <p className="text-[11px] text-muted-foreground">{entry.date}</p>
+                      <p className="mt-0.5 text-sm text-foreground leading-relaxed">
+                        {entry.description}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setEditingEntryId(entry.id)
+                        setEditDate(entry.date)
+                        setEditDescription(entry.description)
+                      }}
+                      className="opacity-0 transition-opacity hover:text-primary group-hover:opacity-100"
+                      title="编辑病程记录"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                  </div>
+                  {editingEntryId === entry.id && (
+                    <div className="mt-2 space-y-2 rounded-lg border border-border p-3 bg-card">
+                      <div>
+                        <label className="block text-xs font-medium text-foreground">
+                          日期
+                        </label>
+                        <input
+                          type="date"
+                          value={editDate}
+                          onChange={(e) => setEditDate(e.target.value)}
+                          className="mt-1 h-8 w-full rounded-lg border border-border px-2 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-foreground">
+                          描述
+                        </label>
+                        <textarea
+                          value={editDescription}
+                          onChange={(e) => setEditDescription(e.target.value)}
+                          rows={2}
+                          className="mt-1 w-full rounded-lg border border-border px-2 py-1 text-sm"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => setEditingEntryId(null)}
+                          className="rounded-lg border border-border px-3 py-1 text-xs"
+                        >
+                          取消
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (editDate && editDescription.trim()) {
+                              onUpdateEntry(event.id, {
+                                ...entry,
+                                date: editDate,
+                                description: editDescription.trim(),
+                              })
+                              setEditingEntryId(null)
+                            }
+                          }}
+                          className="rounded-lg bg-primary px-3 py-1 text-xs text-primary-foreground"
+                        >
+                          保存
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

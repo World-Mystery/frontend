@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Area,
   AreaChart,
+  ReferenceLine,
 } from "recharts"
 import {
   ChartContainer,
@@ -18,55 +19,58 @@ import {
 } from "@/components/ui/chart"
 import { cn } from "@/lib/utils"
 
-const bpData = [
-  { date: "1月", systolic: 138, diastolic: 90 },
-  { date: "2月", systolic: 142, diastolic: 92 },
-  { date: "3月", systolic: 136, diastolic: 88 },
-  { date: "4月", systolic: 140, diastolic: 91 },
-  { date: "5月", systolic: 135, diastolic: 88 },
-  { date: "6月", systolic: 132, diastolic: 85 },
-  { date: "7月", systolic: 130, diastolic: 84 },
-  { date: "8月", systolic: 128, diastolic: 82 },
-]
+// 血压数据 - 一个月内（按日为锚点）
+const bpData = Array.from({ length: 30 }, (_, i) => ({
+  date: (i + 1) % 3 === 1 ? `${i + 1}日` : "",  // 隔两天标注一次
+  systolic: 120 + Math.floor(Math.random() * 20),
+  diastolic: 75 + Math.floor(Math.random() * 15),
+}))
 
-const glucoseData = [
-  { date: "1月", fasting: 6.1, postprandial: 8.9 },
-  { date: "2月", fasting: 5.9, postprandial: 8.5 },
-  { date: "3月", fasting: 6.0, postprandial: 8.7 },
-  { date: "4月", fasting: 5.7, postprandial: 8.3 },
-  { date: "5月", fasting: 5.8, postprandial: 8.2 },
-  { date: "6月", fasting: 5.6, postprandial: 7.9 },
-  { date: "7月", fasting: 5.5, postprandial: 7.8 },
-  { date: "8月", fasting: 5.4, postprandial: 7.6 },
-]
+// 血糖 - 24小时数据
+const glucoseHourlyData = Array.from({ length: 24 }, (_, i) => ({
+  time: `${i}:00`,
+  glucose: 5.5 + Math.random() * 3,
+}))
 
-const heartRateData = [
-  { date: "1月", rate: 76 },
-  { date: "2月", rate: 74 },
-  { date: "3月", rate: 75 },
-  { date: "4月", rate: 73 },
-  { date: "5月", rate: 72 },
-  { date: "6月", rate: 71 },
-  { date: "7月", rate: 70 },
-  { date: "8月", rate: 72 },
-]
+// 血糖 - 月视图数据（按天为锚点）
+const glucoseMonthlyData = Array.from({ length: 30 }, (_, i) => ({
+  date: `${i + 1}日`,
+  glucose: 5.5 + Math.random() * 2.5,
+}))
 
-const uricAcidData = [
-  { date: "1月", value: 420 },
-  { date: "2月", value: 410 },
-  { date: "3月", value: 405 },
-  { date: "4月", value: 398 },
-  { date: "5月", value: 390 },
-  { date: "6月", value: 385 },
-  { date: "7月", value: 382 },
-  { date: "8月", value: 380 },
+// 心率 - 24小时数据
+const heartRateHourlyData = Array.from({ length: 24 }, (_, i) => ({
+  time: `${i}:00`,
+  rate: 65 + Math.floor(Math.random() * 25),
+}))
+
+// 心率 - 月视图数据（按天为锚点）
+const heartRateMonthlyData = Array.from({ length: 30 }, (_, i) => ({
+  date: `${i + 1}日`,
+  rate: 70 + Math.floor(Math.random() * 15),
+}))
+
+// 体重和BMI - 一年数据（按月为锚点）
+const weightBMIData = [
+  { month: "1月", weight: 74, bmi: 24.9 },
+  { month: "2月", weight: 73.5, bmi: 24.7 },
+  { month: "3月", weight: 73, bmi: 24.6 },
+  { month: "4月", weight: 72.5, bmi: 24.4 },
+  { month: "5月", weight: 72, bmi: 24.3 },
+  { month: "6月", weight: 71.5, bmi: 24.1 },
+  { month: "7月", weight: 71, bmi: 23.9 },
+  { month: "8月", weight: 70.5, bmi: 23.8 },
+  { month: "9月", weight: 70, bmi: 23.6 },
+  { month: "10月", weight: 70.5, bmi: 23.8 },
+  { month: "11月", weight: 71, bmi: 23.9 },
+  { month: "12月", weight: 72, bmi: 24.3 },
 ]
 
 const tabs = [
   { id: "bp", label: "血压" },
   { id: "glucose", label: "血糖" },
   { id: "heart-rate", label: "心率" },
-  { id: "uric-acid", label: "尿酸" },
+  { id: "weight-bmi", label: "体重和BMI" },
 ]
 
 // Compute colors in JS since CSS variables don't work directly in Recharts
@@ -110,7 +114,7 @@ export function TrendCharts() {
         {activeTab === "bp" && <BloodPressureChart />}
         {activeTab === "glucose" && <GlucoseChart />}
         {activeTab === "heart-rate" && <HeartRateChart />}
-        {activeTab === "uric-acid" && <UricAcidChart />}
+        {activeTab === "weight-bmi" && <WeightBMIChart />}
       </div>
     </section>
   )
@@ -118,157 +122,277 @@ export function TrendCharts() {
 
 function BloodPressureChart() {
   return (
-    <ChartContainer
-      config={{
-        systolic: { label: "收缩压", color: COLORS.primary },
-        diastolic: { label: "舒张压", color: COLORS.secondary },
-      }}
-      className="h-[280px] w-full"
-    >
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={bpData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
-          <XAxis
-            dataKey="date"
-            tick={{ fontSize: 12 }}
-            className="text-muted-foreground"
-          />
-          <YAxis
-            domain={[70, 160]}
-            tick={{ fontSize: 12 }}
-            className="text-muted-foreground"
-          />
-          <ChartTooltip content={<ChartTooltipContent />} />
-          <Line
-            type="monotone"
-            dataKey="systolic"
-            stroke={COLORS.primary}
-            strokeWidth={2}
-            dot={{ r: 3, fill: COLORS.primary }}
-            activeDot={{ r: 5 }}
-            name="收缩压"
-          />
-          <Line
-            type="monotone"
-            dataKey="diastolic"
-            stroke={COLORS.secondary}
-            strokeWidth={2}
-            dot={{ r: 3, fill: COLORS.secondary }}
-            activeDot={{ r: 5 }}
-            name="舒张压"
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </ChartContainer>
+    <div className="space-y-3">
+      <div className="text-xs text-muted-foreground">
+        <p>正常范围: 收缩压 90-120 mmHg | 舒张压 60-80 mmHg</p>
+      </div>
+      <div className="overflow-x-auto">
+        <ChartContainer
+          config={{
+            systolic: { label: "收缩压", color: COLORS.primary },
+            diastolic: { label: "舒张压", color: COLORS.secondary },
+          }}
+          className="h-[280px] min-w-[900px]"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={bpData} margin={{ top: 5, right: 75, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 12 }}
+                className="text-muted-foreground"
+              />
+              <YAxis
+                domain={[50, 150]}
+                tick={{ fontSize: 12 }}
+                className="text-muted-foreground"
+              />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              {/* 正常范围参考线 */}
+              <ReferenceLine y={120} stroke="rgba(34, 197, 94, 0.3)" strokeDasharray="5 5" label={{ value: "收缩压上限", position: "right", offset: 20, fill: "#22c55e", fontSize: 11 }} />
+              <ReferenceLine y={90} stroke="rgba(34, 197, 94, 0.3)" strokeDasharray="5 5" label={{ value: "收缩压下限", position: "right", offset: 20, fill: "#22c55e", fontSize: 11 }} />
+              <ReferenceLine y={80} stroke="rgba(59, 130, 246, 0.3)" strokeDasharray="5 5" label={{ value: "舒张压上限", position: "right", offset: 20, fill: "#3b82f6", fontSize: 11 }} />
+              <ReferenceLine y={60} stroke="rgba(59, 130, 246, 0.3)" strokeDasharray="5 5" label={{ value: "舒张压下限", position: "right", offset: 20, fill: "#3b82f6", fontSize: 11 }} />
+              <Line
+                type="monotone"
+                dataKey="systolic"
+                stroke={COLORS.primary}
+                strokeWidth={2}
+                dot={{ r: 3, fill: COLORS.primary }}
+                activeDot={{ r: 5 }}
+                name="收缩压"
+              />
+              <Line
+                type="monotone"
+                dataKey="diastolic"
+                stroke={COLORS.secondary}
+                strokeWidth={2}
+                dot={{ r: 3, fill: COLORS.secondary }}
+                activeDot={{ r: 5 }}
+                name="舒张压"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartContainer>
+      </div>
+    </div>
   )
 }
 
 function GlucoseChart() {
+  const [glucoseView, setGlucoseView] = useState<"daily" | "monthly">("daily")
+
   return (
-    <ChartContainer
-      config={{
-        fasting: { label: "空腹血糖", color: COLORS.primary },
-        postprandial: { label: "餐后2h血糖", color: COLORS.accent2 },
-      }}
-      className="h-[280px] w-full"
-    >
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={glucoseData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-          <defs>
-            <linearGradient id="fastingGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.15} />
-              <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0} />
-            </linearGradient>
-            <linearGradient id="postprandialGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={COLORS.accent2} stopOpacity={0.15} />
-              <stop offset="95%" stopColor={COLORS.accent2} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
-          <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-          <YAxis domain={[4, 10]} tick={{ fontSize: 12 }} />
-          <ChartTooltip content={<ChartTooltipContent />} />
-          <Area
-            type="monotone"
-            dataKey="fasting"
-            stroke={COLORS.primary}
-            strokeWidth={2}
-            fill="url(#fastingGrad)"
-            name="空腹血糖"
-          />
-          <Area
-            type="monotone"
-            dataKey="postprandial"
-            stroke={COLORS.accent2}
-            strokeWidth={2}
-            fill="url(#postprandialGrad)"
-            name="餐后2h血糖"
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </ChartContainer>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-muted-foreground">
+          <p>正常范围: 3.9-6.1 mmol/L (空腹) | 7.8 mmol/L以下 (餐后2h)</p>
+        </div>
+        <div className="flex items-center gap-2 rounded-lg bg-muted p-1">
+          <button
+            onClick={() => setGlucoseView("daily")}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+              glucoseView === "daily"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            24小时
+          </button>
+          <button
+            onClick={() => setGlucoseView("monthly")}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+              glucoseView === "monthly"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            月视图
+          </button>
+        </div>
+      </div>
+      <ChartContainer
+        config={{
+          glucose: { label: "血糖", color: COLORS.primary },
+        }}
+        className="h-[280px] w-full"
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart
+            data={glucoseView === "daily" ? glucoseHourlyData : glucoseMonthlyData}
+            margin={{ top: 20, right: 20, left: 60, bottom: 5 }}
+          >
+            <defs>
+              <linearGradient id="glucoseGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.15} />
+                <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
+            <XAxis
+              dataKey={glucoseView === "daily" ? "time" : "date"}
+              tick={{ fontSize: 12 }}
+            />
+            <YAxis domain={[3, 10]} tick={{ fontSize: 12 }} />
+            <ChartTooltip content={<ChartTooltipContent />} />
+            {/* 正常范围参考线 */}
+            <ReferenceLine y={6.1} stroke="rgba(34, 197, 94, 0.3)" strokeDasharray="5 5" label={{ value: "正常上限", position: "left", offset: 10, fill: "#22c55e", fontSize: 11 }} />
+            <ReferenceLine y={3.9} stroke="rgba(34, 197, 94, 0.3)" strokeDasharray="5 5" label={{ value: "正常下限", position: "left", offset: 10, fill: "#22c55e", fontSize: 11 }} />
+            <Area
+              type="monotone"
+              dataKey="glucose"
+              stroke={COLORS.primary}
+              strokeWidth={2}
+              fill="url(#glucoseGrad)"
+              name="血糖"
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </ChartContainer>
+    </div>
   )
 }
 
 function HeartRateChart() {
+  const [heartRateView, setHeartRateView] = useState<"daily" | "monthly">("daily")
+
   return (
-    <ChartContainer
-      config={{
-        rate: { label: "静息心率", color: COLORS.accent1 },
-      }}
-      className="h-[280px] w-full"
-    >
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={heartRateData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-          <defs>
-            <linearGradient id="heartGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={COLORS.accent1} stopOpacity={0.15} />
-              <stop offset="95%" stopColor={COLORS.accent1} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
-          <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-          <YAxis domain={[60, 85]} tick={{ fontSize: 12 }} />
-          <ChartTooltip content={<ChartTooltipContent />} />
-          <Area
-            type="monotone"
-            dataKey="rate"
-            stroke={COLORS.accent1}
-            strokeWidth={2}
-            fill="url(#heartGrad)"
-            name="静息心率"
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </ChartContainer>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-muted-foreground">
+          <p>正常范围: 60-100 bpm</p>
+        </div>
+        <div className="flex items-center gap-2 rounded-lg bg-muted p-1">
+          <button
+            onClick={() => setHeartRateView("daily")}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+              heartRateView === "daily"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            24小时
+          </button>
+          <button
+            onClick={() => setHeartRateView("monthly")}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+              heartRateView === "monthly"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            月视图
+          </button>
+        </div>
+      </div>
+      <ChartContainer
+        config={{
+          rate: { label: "心率", color: COLORS.accent1 },
+        }}
+        className="h-[280px] w-full"
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart
+            data={heartRateView === "daily" ? heartRateHourlyData : heartRateMonthlyData}
+            margin={{ top: 20, right: 20, left: 60, bottom: 5 }}
+          >
+            <defs>
+              <linearGradient id="heartRateGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={COLORS.accent1} stopOpacity={0.15} />
+                <stop offset="95%" stopColor={COLORS.accent1} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
+            <XAxis
+              dataKey={heartRateView === "daily" ? "time" : "date"}
+              tick={{ fontSize: 12 }}
+            />
+            <YAxis domain={[50, 110]} tick={{ fontSize: 12 }} />
+            <ChartTooltip content={<ChartTooltipContent />} />
+            {/* 正常范围参考线 */}
+            <ReferenceLine y={100} stroke="rgba(34, 197, 94, 0.3)" strokeDasharray="5 5" label={{ value: "正常上限", position: "left", offset: 10, fill: "#22c55e", fontSize: 11 }} />
+            <ReferenceLine y={60} stroke="rgba(34, 197, 94, 0.3)" strokeDasharray="5 5" label={{ value: "正常下限", position: "left", offset: 10, fill: "#22c55e", fontSize: 11 }} />
+            <Area
+              type="monotone"
+              dataKey="rate"
+              stroke={COLORS.accent1}
+              strokeWidth={2}
+              fill="url(#heartRateGrad)"
+              name="心率"
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </ChartContainer>
+    </div>
   )
 }
 
-function UricAcidChart() {
+function WeightBMIChart() {
   return (
-    <ChartContainer
-      config={{
-        value: { label: "尿酸", color: COLORS.secondary },
-      }}
-      className="h-[280px] w-full"
-    >
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={uricAcidData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
-          <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-          <YAxis domain={[350, 440]} tick={{ fontSize: 12 }} />
-          <ChartTooltip content={<ChartTooltipContent />} />
-          <Line
-            type="monotone"
-            dataKey="value"
-            stroke={COLORS.secondary}
-            strokeWidth={2}
-            dot={{ r: 3, fill: COLORS.secondary }}
-            activeDot={{ r: 5 }}
-            name="尿酸"
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </ChartContainer>
+    <div className="space-y-3">
+      <div className="text-xs text-muted-foreground">
+        <p>正常范围: BMI 18.5-24.9 kg/m²</p>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {/* 体重图表 */}
+        <ChartContainer
+          config={{
+            weight: { label: "体重", color: COLORS.primary },
+          }}
+          className="h-[280px] w-full"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={weightBMIData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+              <YAxis domain={[68, 76]} tick={{ fontSize: 12 }} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Line
+                type="monotone"
+                dataKey="weight"
+                stroke={COLORS.primary}
+                strokeWidth={2}
+                dot={{ r: 3, fill: COLORS.primary }}
+                activeDot={{ r: 5 }}
+                name="体重(kg)"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartContainer>
+
+        {/* BMI图表 */}
+        <ChartContainer
+          config={{
+            bmi: { label: "BMI", color: COLORS.secondary },
+          }}
+          className="h-[280px] w-full"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={weightBMIData} margin={{ top: 20, right: 20, left: 60, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+              <YAxis domain={[23, 26]} tick={{ fontSize: 12 }} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              {/* 正常范围参考线 */}
+              <ReferenceLine y={24.9} stroke="rgba(34, 197, 94, 0.3)" strokeDasharray="5 5" label={{ value: "正常上限", position: "left", offset: 10, fill: "#22c55e", fontSize: 11 }} />
+              <ReferenceLine y={18.5} stroke="rgba(34, 197, 94, 0.3)" strokeDasharray="5 5" label={{ value: "正常下限", position: "left", offset: 10, fill: "#22c55e", fontSize: 11 }} />
+              <Line
+                type="monotone"
+                dataKey="bmi"
+                stroke={COLORS.secondary}
+                strokeWidth={2}
+                dot={{ r: 3, fill: COLORS.secondary }}
+                activeDot={{ r: 5 }}
+                name="BMI(kg/m²)"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartContainer>
+      </div>
+    </div>
   )
 }

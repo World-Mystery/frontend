@@ -19,7 +19,7 @@ import type { HealthEvent } from "./types"
 interface TimelineViewProps {
   events: HealthEvent[]
   onEdit: (event: HealthEvent) => void
-  onMarkResolved: (id: string) => void
+  // timeline view no longer supports marking events as resolved
 }
 
 /** Group events by year+month descending */
@@ -46,14 +46,13 @@ function TimelineEventNode({
   event,
   isLast,
   onEdit,
-  onMarkResolved,
 }: {
   event: HealthEvent
   isLast: boolean
   onEdit: (event: HealthEvent) => void
-  onMarkResolved: (id: string) => void
 }) {
-  const [expanded, setExpanded] = useState(event.status === "active")
+  // all events start collapsed by default
+  const [expanded, setExpanded] = useState(false)
   const [showAiAdvice, setShowAiAdvice] = useState(false)
   const isActive = event.status === "active"
 
@@ -141,18 +140,6 @@ function TimelineEventNode({
             )}
           </div>
           <div className="mt-0.5 flex items-center gap-1">
-            {isActive && (
-              <span
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onMarkResolved(event.id)
-                }}
-                className="flex h-7 w-7 items-center justify-center rounded-md opacity-0 transition-all hover:bg-emerald-500/10 group-hover:opacity-100"
-                title="标记为已康复"
-              >
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-              </span>
-            )}
             {expanded ? (
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             ) : (
@@ -267,7 +254,6 @@ export function TimelineView({ events, onEdit, onMarkResolved }: TimelineViewPro
                 event={event}
                 isLast={index === group.events.length - 1}
                 onEdit={onEdit}
-                onMarkResolved={onMarkResolved}
               />
             ))}
           </div>

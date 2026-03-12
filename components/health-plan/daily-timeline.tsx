@@ -1,5 +1,6 @@
 "use client"
 
+import { useRef, useState } from "react"
 import {
   RefreshCw,
   Trash2,
@@ -10,7 +11,6 @@ import {
   Stethoscope,
   SquarePen,
   Sparkles,
-  Plus,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { categoryMeta, type ScheduleBlock, type BlockCategory } from "./types"
@@ -21,6 +21,8 @@ interface DailyTimelineProps {
   onRefresh: (id: string) => void
   onDelete: (id: string) => void
   onClickTimeslot: (time: string) => void
+  onBlockClick: (block: ScheduleBlock) => void
+  expandedBlockId?: string | null
 }
 
 const categoryIcons: Record<BlockCategory, React.ElementType> = {
@@ -32,23 +34,38 @@ const categoryIcons: Record<BlockCategory, React.ElementType> = {
   custom: SquarePen,
 }
 
-// Generate time slots from 06:00 to 22:00
-const timeSlots: string[] = []
-for (let h = 6; h <= 22; h++) {
-  timeSlots.push(`${String(h).padStart(2, "0")}:00`)
+// Constants controlling vertical scale
+const PIXELS_PER_MINUTE = 2.5 // pixels per minute; 15min block = 37.5px height
+const TIMELINE_START_HOUR = 6 // timeline starts at 06:00
+const TIMELINE_END_HOUR = 23 // timeline ends at 23:00
+const TOTAL_MINUTES = (TIMELINE_END_HOUR - TIMELINE_START_HOUR) * 60 // 1020 minutes
+const TIMELINE_HEIGHT = TOTAL_MINUTES * PIXELS_PER_MINUTE // total height in pixels
+
+// Convert time strings (HH:MM) to minutes from timeline start (06:00)
+function timeToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number)
+  return h * 60 + m - TIMELINE_START_HOUR * 60
 }
 
-function getBlockPosition(startTime: string): number {
-  const [h, m] = startTime.split(":").map(Number)
-  return (h - 6) * 80 + (m / 60) * 80 // 80px per hour
+// Convert minutes from timeline start back to time string (HH:MM)
+function minutesToTime(minutes: number): string {
+  const totalMinutes = minutes + TIMELINE_START_HOUR * 60
+  const h = Math.floor(totalMinutes / 60)
+  const m = totalMinutes % 60
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
 }
 
-function getBlockHeight(startTime: string, endTime: string): number {
-  const [sh, sm] = startTime.split(":").map(Number)
-  const [eh, em] = endTime.split(":").map(Number)
-  const startMin = sh * 60 + sm
-  const endMin = eh * 60 + em
-  return Math.max(((endMin - startMin) / 60) * 80, 56) // min 56px
+interface ScheduleBlockCardProps {
+  block: ScheduleBlock
+  isRefreshing: boolean
+  onRefresh: () => void
+  onDelete: () => void
+  onClick?: () => void
+  left: string
+  top: number
+  height: number
+  width: string
+  isExpanded?: boolean
 }
 
 function ScheduleBlockCard({
@@ -56,96 +73,147 @@ function ScheduleBlockCard({
   isRefreshing,
   onRefresh,
   onDelete,
-}: {
-  block: ScheduleBlock
-  isRefreshing: boolean
-  onRefresh: () => void
-  onDelete: () => void
-}) {
+  onClick,
+  left,
+  top,
+  height,
+  width,
+  isExpanded,
+}: ScheduleBlockCardProps) {
   const meta = categoryMeta[block.category]
   const Icon = categoryIcons[block.category]
-  const top = getBlockPosition(block.startTime)
-  const height = getBlockHeight(block.startTime, block.endTime)
+
+  // For very short blocks (< 40px), show minimal content, but allow expansion
+  const isShortBlock = height < 40
+  const showDetails = isExpanded || (!isShortBlock && block.details.length > 0)
+  const displayHeight = isExpanded ? height * 2 : height
+
+  // Short blocks are always clickable (to expand)
+  const handleClickCard = isShortBlock ? onClick : undefined
 
   return (
     <div
-      className="group absolute left-0 right-0 z-10"
-      style={{ top: `${top}px`, minHeight: `${height}px` }}
+      style={{
+        left,
+        top: `${top}px`,
+        height: `${displayHeight}px`,
+        width,
+      }}
+      onClick={(e) => {
+        e.stopPropagation()
+        handleClickCard && handleClickCard()
+      }}
+      className={cn("group absolute", isShortBlock && "cursor-pointer", isExpanded && "z-50")}
     >
       <div
         className={cn(
-          "relative ml-[72px] mr-2 flex overflow-hidden rounded-xl border bg-card transition-all hover:shadow-md",
-          "border-border/60 hover:border-border"
+          "relative flex h-full rounded-xl border bg-card transition-all hover:shadow-lg hover:shadow-black/10",
+          "border-border/60 hover:border-border hover:z-20",
+          isExpanded && "overflow-y-auto"
         )}
       >
         {/* Left color accent */}
         <div className={cn("w-1 shrink-0 rounded-l-xl", meta.color)} />
 
-        <div className="flex flex-1 items-start gap-3 px-4 py-3">
-          {/* Icon */}
-          <div className={cn("mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", meta.bgLight)}>
-            <Icon className={cn("h-4 w-4", meta.textColor)} />
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-foreground truncate">{block.title}</h3>
-              {block.aiGenerated && (
-                <span className="flex items-center gap-0.5 rounded-md bg-primary/[0.07] px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                  <Sparkles className="h-2.5 w-2.5" />
-                  AI
-                </span>
-              )}
+        <div className={cn(
+          "flex flex-1 min-w-0 flex-col px-3",
+          isShortBlock ? "py-1.5" : "py-2"
+        )}>
+          {/* Title row */}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className={cn(
+              "shrink-0 flex items-center justify-center rounded-md",
+              isShortBlock ? "h-5 w-5" : "h-6 w-6",
+              meta.bgLight
+            )}>
+              <Icon className={cn("h-3 w-3", meta.textColor)} />
             </div>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
-              {block.startTime} - {block.endTime}
-            </p>
-            {/* Detail chips */}
-            {block.details.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {block.details.map((d, i) => (
-                  <span
-                    key={i}
-                    className={cn(
-                      "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium",
-                      meta.bgLight, meta.textColor
-                    )}
-                  >
-                    {d}
-                  </span>
-                ))}
-              </div>
+            <h3 className={cn(
+              "font-semibold text-foreground truncate flex-1",
+              isShortBlock ? "text-xs" : "text-sm"
+            )}>
+              {block.title}
+            </h3>
+            {block.aiGenerated && (!isShortBlock || isExpanded) && (
+              <span className="flex items-center gap-0.5 rounded-md bg-primary/[0.07] px-1 py-0.5 text-[9px] font-medium text-primary shrink-0">
+                <Sparkles className="h-2 w-2" />
+              </span>
             )}
           </div>
 
-          {/* Actions - hover reveal */}
-          <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-            {(block.category === "meal" || block.category === "exercise") && (
-              <button
-                onClick={onRefresh}
-                disabled={isRefreshing}
-                className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-primary/10"
-                title="让 AI 换一个"
-              >
-                <RefreshCw
-                  className={cn(
-                    "h-3.5 w-3.5 text-primary",
-                    isRefreshing && "animate-spin"
+          {/* Time and details */}
+          {(!isShortBlock || isExpanded) && (
+            <>
+              <p className="mt-0.5 text-[10px] text-muted-foreground">
+                {block.startTime} - {block.endTime}
+              </p>
+
+              {showDetails && (
+                <div className="mt-1 flex flex-wrap gap-0.5">
+                  {isExpanded
+                    ? block.details.map((d, i) => (
+                        <span
+                          key={i}
+                          className={cn(
+                            "inline-flex items-center rounded-md px-1.5 py-0 text-[9px] font-medium",
+                            meta.bgLight,
+                            meta.textColor
+                          )}
+                        >
+                          {d}
+                        </span>
+                      ))
+                    : block.details.slice(0, 2).map((d, i) => (
+                        <span
+                          key={i}
+                          className={cn(
+                            "inline-flex items-center rounded-md px-1.5 py-0 text-[9px] font-medium truncate",
+                            meta.bgLight,
+                            meta.textColor
+                          )}
+                        >
+                          {d}
+                        </span>
+                      ))}
+                  {!isExpanded && block.details.length > 2 && (
+                    <span className={cn(
+                      "inline-flex items-center rounded-md px-1.5 py-0 text-[9px] font-medium",
+                      meta.bgLight,
+                      meta.textColor
+                    )}>
+                      +{block.details.length - 2}
+                    </span>
                   )}
-                />
-              </button>
-            )}
-            {!block.aiGenerated && (
-              <button
-                onClick={onDelete}
-                className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-red-500/10"
-                title="删除"
-              >
-                <Trash2 className="h-3.5 w-3.5 text-red-500 dark:text-red-400" />
-              </button>
-            )}
-          </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Actions - hover reveal */}
+        <div className="flex shrink-0 items-center gap-1 pr-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+          <button
+            onClick={onRefresh}
+            disabled={isRefreshing}
+            className="flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-primary/10"
+            title="让 AI 换一个"
+          >
+            <RefreshCw
+              className={cn(
+                "h-3 w-3 text-primary",
+                isRefreshing && "animate-spin"
+              )}
+            />
+          </button>
+          {!block.aiGenerated && (
+            <button
+              onClick={onDelete}
+              className="flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-red-500/10"
+              title="删除"
+            >
+              <Trash2 className="h-3 w-3 text-red-500 dark:text-red-400" />
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -158,25 +226,101 @@ export function DailyTimeline({
   onRefresh,
   onDelete,
   onClickTimeslot,
+  onBlockClick,
+  expandedBlockId,
 }: DailyTimelineProps) {
-  // Check if a given timeslot already has a block starting within that hour
-  const isSlotOccupied = (slotTime: string) => {
-    const [sh] = slotTime.split(":").map(Number)
-    return schedule.some((b) => {
-      const [bh] = b.startTime.split(":").map(Number)
-      return bh === sh
+  const timelineRef = useRef<HTMLDivElement>(null)
+
+  // Compute horizontal layout for overlapping blocks
+  function computeLayout(blocks: ScheduleBlock[]): (ScheduleBlock & {
+    startMin: number
+    endMin: number
+    col: number
+    totalCols: number
+  })[] {
+    const items = blocks.map((b) => {
+      const startMin = timeToMinutes(b.startTime)
+      const endMin = timeToMinutes(b.endTime)
+      return {
+        ...b,
+        startMin,
+        endMin,
+        col: 0,
+        totalCols: 1,
+      }
     })
+
+    items.sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin)
+
+    // Group overlapping blocks
+    const groups: typeof items[] = []
+    let currentGroup: typeof items = []
+    let currentMaxEnd = -1
+
+    for (const item of items) {
+      if (currentGroup.length === 0 || item.startMin < currentMaxEnd) {
+        currentGroup.push(item)
+        currentMaxEnd = Math.max(currentMaxEnd, item.endMin)
+      } else {
+        groups.push(currentGroup)
+        currentGroup = [item]
+        currentMaxEnd = item.endMin
+      }
+    }
+    if (currentGroup.length) groups.push(currentGroup)
+
+    // Assign columns within each group
+    groups.forEach((group) => {
+      const cols: typeof group[] = []
+      group.forEach((blk) => {
+        let placed = false
+        for (let ci = 0; ci < cols.length; ci++) {
+          const last = cols[ci][cols[ci].length - 1]
+          if (blk.startMin >= last.endMin) {
+            cols[ci].push(blk)
+            blk.col = ci
+            placed = true
+            break
+          }
+        }
+        if (!placed) {
+          blk.col = cols.length
+          cols.push([blk])
+        }
+      })
+      const total = cols.length
+      group.forEach((blk) => {
+        blk.totalCols = total
+      })
+    })
+
+    return items
+  }
+
+  const positioned = computeLayout(schedule)
+
+  // Handle click on timeline background to create new event
+  function handleTimelineClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (!timelineRef.current) return
+
+    const rect = timelineRef.current.getBoundingClientRect()
+    const y = e.clientY - rect.top + timelineRef.current.scrollTop
+    const minutesFromStart = Math.floor(y / PIXELS_PER_MINUTE)
+    const roundedMinutes = Math.floor(minutesFromStart / 15) * 15
+    const time = minutesToTime(roundedMinutes)
+
+    onClickTimeslot(time)
   }
 
   return (
-    <div className="rounded-xl border border-border/60 bg-card">
+    <div className="flex flex-col h-full rounded-xl border border-border/60 bg-card min-h-[600px]">
       {/* Header */}
-      <div className="border-b border-border/40 px-5 py-4">
+      <div className="border-b border-border/40 px-5 py-4 shrink-0">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-base font-semibold text-foreground">AI 动态日程</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {"点击空白时段添加自定义安排"}
+              {"点击时间线添加自定义安排"}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -193,52 +337,71 @@ export function DailyTimeline({
         </div>
       </div>
 
-      {/* Timeline body */}
-      <div className="relative overflow-y-auto px-4 py-2" style={{ height: "calc(17 * 80px)" }}>
-        {/* Time grid lines */}
-        {timeSlots.map((slot, i) => {
-          const top = i * 80
-          const occupied = isSlotOccupied(slot)
-          return (
-            <div
-              key={slot}
-              className="absolute left-0 right-0"
-              style={{ top: `${top}px` }}
-            >
-              {/* Time label */}
-              <div className="absolute left-4 top-0 flex h-6 items-center">
-                <span className="text-[11px] font-medium tabular-nums text-muted-foreground/70">
-                  {slot}
-                </span>
-              </div>
-              {/* Grid line */}
-              <div className="absolute left-[72px] right-4 top-0 h-px bg-border/30" />
-              {/* Clickable empty zone */}
-              {!occupied && (
-                <button
-                  onClick={() => onClickTimeslot(slot)}
-                  className="absolute left-[72px] right-4 top-0 z-0 flex h-[80px] items-center justify-center rounded-lg opacity-0 transition-all hover:bg-accent/40 hover:opacity-100"
-                >
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Plus className="h-3.5 w-3.5" />
-                    <span>添加安排</span>
-                  </div>
-                </button>
-              )}
-            </div>
-          )
-        })}
+      {/* Timeline body with absolute positioning */}
+      <div
+        ref={timelineRef}
+        className="relative flex-1 overflow-y-auto px-4 py-0"
+        onClick={handleTimelineClick}
+      >
+        {/* Background grid lines - using absolute positioning */}
+        <div className="absolute left-0 right-0 top-0 bottom-0 pointer-events-none">
+          {Array.from({ length: (TIMELINE_END_HOUR - TIMELINE_START_HOUR) + 1 }).map(
+            (_, hourIndex) => {
+              const hour = TIMELINE_START_HOUR + hourIndex
+              const top = hourIndex * 60 * PIXELS_PER_MINUTE
 
-        {/* Schedule blocks */}
-        {schedule.map((block) => (
-          <ScheduleBlockCard
-            key={block.id}
-            block={block}
-            isRefreshing={refreshingId === block.id}
-            onRefresh={() => onRefresh(block.id)}
-            onDelete={() => onDelete(block.id)}
-          />
-        ))}
+              return (
+                <div key={hour} className="relative" style={{ height: `${60 * PIXELS_PER_MINUTE}px` }}>
+                  {/* Hour line */}
+                  <div
+                    className="absolute left-0 right-0 border-t border-border/50"
+                    style={{ top: 0 }}
+                  />
+
+                  {/* Hour label */}
+                  <div
+                    className="absolute left-0 text-[11px] font-medium tabular-nums text-muted-foreground/60"
+                    style={{ top: -6 }}
+                  >
+                    {String(hour).padStart(2, "0")}:00
+                  </div>
+
+                  {/* 30-minute subdivision line */}
+                  <div
+                    className="absolute left-0 right-0 border-t border-border/20"
+                    style={{ top: `${30 * PIXELS_PER_MINUTE}px` }}
+                  />
+                </div>
+              )
+            }
+          )}
+        </div>
+
+        {/* Schedule blocks container with margin for time labels */}
+        <div className="absolute left-[70px] right-4 top-0 bottom-0">
+          {positioned.map((block) => {
+            const top = block.startMin * PIXELS_PER_MINUTE
+            const height = (block.endMin - block.startMin) * PIXELS_PER_MINUTE
+            const leftPercent = (block.col / block.totalCols) * 100
+            const widthPercent = 100 / block.totalCols
+
+            return (
+              <ScheduleBlockCard
+                key={block.id}
+                block={block}
+                isRefreshing={refreshingId === block.id}
+                onRefresh={() => onRefresh(block.id)}
+                onDelete={() => onDelete(block.id)}
+                onClick={() => onBlockClick(block)}
+                left={`${leftPercent}%`}
+                top={top}
+                height={height}
+                width={`${widthPercent}%`}
+                isExpanded={expandedBlockId === block.id}
+              />
+            )
+          })}
+        </div>
       </div>
     </div>
   )

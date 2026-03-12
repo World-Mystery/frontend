@@ -34,7 +34,7 @@ export const categoryMeta: Record<
     textColor: "text-blue-600 dark:text-blue-400",
   },
   rest: {
-    label: "休息/冥想",
+    label: "休息",
     color: "bg-emerald-500",
     bgLight: "bg-emerald-500/[0.07]",
     bgDot: "bg-emerald-400",

@@ -45,7 +45,7 @@ export function TopNav({ activeNav, onNavChange }: TopNavProps) {
 
         {showMemberMenu && (
           <>
-            <div className="fixed inset-0 z-40 bg-white/80 backdrop-blur-sm dark:bg-background/80" onClick={() => setShowMemberMenu(false)} />
+            <div className="fixed inset-0 z-40" onClick={() => setShowMemberMenu(false)} />
             <div className="absolute left-0 top-full z-50 mt-1.5 w-48 overflow-hidden rounded-xl border border-border/50 bg-white p-1.5 shadow-lg shadow-foreground/[0.08] dark:bg-[hsl(222,20%,14%)]">
               {["妈妈", "爸爸", "我"].map((member) => (
                 <button
@@ -98,7 +98,7 @@ export function TopNav({ activeNav, onNavChange }: TopNavProps) {
 
           {showNotifications && (
             <>
-              <div className="fixed inset-0 z-40 bg-white/80 backdrop-blur-sm dark:bg-background/80" onClick={() => setShowNotifications(false)} />
+              <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
               <div className="absolute right-0 top-full z-50 mt-1.5 w-80 rounded-xl border border-border/50 bg-white p-2 shadow-lg shadow-foreground/[0.08] dark:bg-[hsl(222,20%,14%)]">
                 <p className="px-3 py-2 text-xs font-medium text-muted-foreground">通知</p>
                 <div className="flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-accent">
@@ -130,7 +130,7 @@ export function TopNav({ activeNav, onNavChange }: TopNavProps) {
 
           {showSearch && (
             <>
-              <div className="fixed inset-0 z-40 bg-white/80 backdrop-blur-sm dark:bg-background/80" onClick={() => setShowSearch(false)} />
+              <div className="fixed inset-0 z-40" onClick={() => setShowSearch(false)} />
               <div className="absolute right-0 top-full z-50 mt-1.5 w-80 rounded-xl border border-border/50 bg-white p-1 shadow-lg shadow-foreground/[0.08] dark:bg-[hsl(222,20%,14%)]">
                 <div className="flex items-center gap-2 px-3 py-1">
                   <Search className="h-4 w-4 shrink-0 text-muted-foreground/50" />

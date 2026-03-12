@@ -10,6 +10,7 @@ interface ManagementViewProps {
   onEdit: (event: HealthEvent) => void
   onDelete: (id: string) => void
   onMarkResolved: (id: string) => void
+  onUpdateEntry: (eventId: string, entry: HealthEvent["timeline"][0]) => void
 }
 
 export function ManagementView({
@@ -17,6 +18,7 @@ export function ManagementView({
   onEdit,
   onDelete,
   onMarkResolved,
+  onUpdateEntry,
 }: ManagementViewProps) {
   const activeEvents = events.filter((e) => e.status === "active")
   const recoveredEvents = events.filter((e) => e.status === "recovered")
@@ -45,6 +47,7 @@ export function ManagementView({
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onMarkResolved={onMarkResolved}
+                onUpdateEntry={onUpdateEntry}
               />
             ))}
           </div>
@@ -75,6 +78,7 @@ export function ManagementView({
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onMarkResolved={onMarkResolved}
+                onUpdateEntry={onUpdateEntry}
               />
             ))}
           </div>
