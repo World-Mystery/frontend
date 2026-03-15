@@ -1,8 +1,10 @@
 "use client"
 
-import { Menu, SquarePen, Settings, X, MessageSquare, Clock, Sparkles } from "lucide-react"
+import { Menu, SquarePen, LogOut, X, MessageSquare, Clock, Sparkles } from "lucide-react"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { clearAllAuth } from "@/lib/auth"
 
 const chatHistory = [
   { id: "1", title: "关于妈妈血压的咨询", date: "今天" },
@@ -19,6 +21,12 @@ interface LeftSidebarProps {
 
 export function LeftSidebar({ onNewChat }: LeftSidebarProps) {
   const [expanded, setExpanded] = useState(false)
+  const router = useRouter()
+
+  const handleLogout = () => {
+    clearAllAuth()
+    router.replace("/auth")
+  }
 
   return (
     <>
@@ -51,10 +59,11 @@ export function LeftSidebar({ onNewChat }: LeftSidebarProps) {
         <div className="flex-1" />
 
         <button
+          onClick={handleLogout}
           className="flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-accent"
-          aria-label="设置"
+          aria-label="退出登录"
         >
-          <Settings className="h-5 w-5 text-muted-foreground" />
+          <LogOut className="h-5 w-5 text-muted-foreground" />
         </button>
       </aside>
 
@@ -120,11 +129,14 @@ export function LeftSidebar({ onNewChat }: LeftSidebarProps) {
           })()}
         </div>
 
-        {/* Bottom settings */}
+        {/* Bottom logout */}
         <div className="border-t border-border px-3 py-3">
-          <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-            <Settings className="h-4 w-4" />
-            设置
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <LogOut className="h-4 w-4" />
+            退出登录
           </button>
         </div>
       </div>

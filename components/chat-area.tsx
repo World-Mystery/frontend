@@ -1,7 +1,9 @@
-﻿"use client"
+﻿﻿"use client"
 
-import { Send, Paperclip, Sparkles, ArrowUp, Heart, Activity, Utensils, Dumbbell } from "lucide-react"
-import { useState, useRef, useEffect } from "react"
+import { Send, Paperclip, Sparkles, Heart, Activity, Utensils, Dumbbell } from "lucide-react"
+import { useState, useRef, useEffect, useMemo } from "react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import { cn } from "@/lib/utils"
 import { ensureActiveMemberId } from "@/lib/member"
 import { streamAiChat } from "@/lib/ai-chat"
@@ -119,6 +121,12 @@ export function ChatArea() {
   }
 
   const isEmptyState = messages.length === 0
+  const latestAssistantId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i]?.role === "assistant") return messages[i]?.id
+    }
+    return undefined
+  }, [messages])
 
   return (
     <div className="relative flex flex-1 flex-col overflow-hidden">
@@ -140,45 +148,108 @@ export function ChatArea() {
         ) : (
           /* Messages */
           <div className="mx-auto max-w-3xl px-6 pb-64 pt-6">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={cn(
-                  "mb-5 flex",
-                  msg.role === "user" ? "justify-end" : "justify-start"
-                )}
-              >
-                {msg.role === "assistant" && (
-                  <div className="mr-3 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/[0.07]">
-                    <Sparkles className="h-4 w-4 text-primary/70" />
-                  </div>
-                )}
+            {messages.map((msg) => {
+              const isAssistant = msg.role === "assistant"
+              const isLatestAssistant = isAssistant && msg.id === latestAssistantId
+              const showTypingDots = isLatestAssistant && isTyping && msg.content.length === 0
+
+              return (
                 <div
+                  key={msg.id}
                   className={cn(
-                    "max-w-[78%] text-[14.5px] leading-[1.65]",
-                    msg.role === "user"
-                      ? "rounded-[20px] rounded-br-md bg-primary/[0.08] px-5 py-3 text-foreground"
-                      : "text-foreground/90"
+                    "mb-5 flex",
+                    msg.role === "user" ? "justify-end" : "justify-start"
                   )}
                 >
-                  {msg.content}
-                </div>
-              </div>
-            ))}
-            {isTyping && (
-              <div className="mb-5 flex justify-start">
-                <div className="mr-3 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/[0.07]">
-                  <Sparkles className="h-4 w-4 text-primary/70" />
-                </div>
-                <div className="py-2">
-                  <div className="flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/30 [animation-delay:0ms]" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/30 [animation-delay:150ms]" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/30 [animation-delay:300ms]" />
+                  {isAssistant && (
+                    <div className="mr-3 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/[0.07]">
+                      <Sparkles className="h-4 w-4 text-primary/70" />
+                    </div>
+                  )}
+                  <div
+                    className={cn(
+                      "max-w-[78%] text-[14.5px] leading-[1.65]",
+                      msg.role === "user"
+                        ? "rounded-[20px] rounded-br-md bg-primary/[0.08] px-5 py-3 text-foreground"
+                        : "text-foreground/90"
+                    )}
+                  >
+                    {isAssistant ? (
+                      <div className="space-y-3 [&_p]:leading-[1.65]">
+                        {showTypingDots ? (
+                          <div className="flex items-center gap-1 py-1">
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/30 [animation-delay:0ms]" />
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/30 [animation-delay:150ms]" />
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/30 [animation-delay:300ms]" />
+                          </div>
+                        ) : (
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              p: ({ children }) => <p className="leading-[1.65]">{children}</p>,
+                              a: ({ children, href }) => (
+                                <a
+                                  href={href}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-primary underline underline-offset-4"
+                                >
+                                  {children}
+                                </a>
+                              ),
+                              ul: ({ children }) => <ul className="list-disc pl-5">{children}</ul>,
+                              ol: ({ children }) => <ol className="list-decimal pl-5">{children}</ol>,
+                              li: ({ children }) => <li className="my-1">{children}</li>,
+                              blockquote: ({ children }) => (
+                                <blockquote className="border-l-2 border-primary/30 pl-3 text-foreground/80">
+                                  {children}
+                                </blockquote>
+                              ),
+                              code: ({ className, children }) => {
+                                const isInline = !className
+                                if (isInline) {
+                                  return (
+                                    <code className="rounded bg-muted px-1.5 py-0.5 text-[0.92em]">
+                                      {children}
+                                    </code>
+                                  )
+                                }
+                                return <code className={className}>{children}</code>
+                              },
+                              pre: ({ children }) => (
+                                <pre className="overflow-x-auto rounded-lg bg-muted px-4 py-3 text-[0.9em]">
+                                  {children}
+                                </pre>
+                              ),
+                              h1: ({ children }) => <h1 className="text-lg font-semibold">{children}</h1>,
+                              h2: ({ children }) => <h2 className="text-base font-semibold">{children}</h2>,
+                              h3: ({ children }) => <h3 className="text-[15px] font-semibold">{children}</h3>,
+                              table: ({ children }) => (
+                                <div className="overflow-x-auto">
+                                  <table className="w-full border-collapse text-sm">{children}</table>
+                                </div>
+                              ),
+                              th: ({ children }) => (
+                                <th className="border border-border/60 bg-muted px-2 py-1 text-left">
+                                  {children}
+                                </th>
+                              ),
+                              td: ({ children }) => (
+                                <td className="border border-border/60 px-2 py-1">{children}</td>
+                              ),
+                            }}
+                          >
+                            {msg.content}
+                          </ReactMarkdown>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                    )}
                   </div>
                 </div>
-              </div>
-            )}
+              )
+            })}
             <div ref={messagesEndRef} />
           </div>
         )}
@@ -244,10 +315,10 @@ export function ChatArea() {
               <button
                 onClick={() => handleSend()}
                 disabled={!input.trim() || isTyping}
-                className="mb-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary transition-colors hover:bg-primary/90 disabled:opacity-50"
+                className="mb-2 flex h-8 w-8 shrink-0 items-center justify-center btn-bubble disabled:opacity-50"
                 aria-label="发送"
               >
-                <Send className="h-4 w-4 text-white" />
+                <Send className="h-4 w-4 text-sky-900" />
               </button>
             </div>
           </div>

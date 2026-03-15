@@ -123,3 +123,44 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .btn-bubble {
+    background: oklch(0.86 0.035 220);
+    color: white;
+    border: 1px solid oklch(0.8 0.03 220);
+    @apply relative rounded-full shadow-[0_4px_12px_-10px_rgba(24,48,68,0.2)] transition-colors transition-shadow;
+  }
+  .btn-bubble:hover {
+    background: oklch(0.84 0.033 220);
+    border-color: oklch(0.78 0.028 220);
+    @apply shadow-[0_6px_14px_-10px_rgba(20,40,60,0.22)];
+  }
+  .btn-bubble:active {
+    background: oklch(0.82 0.032 220);
+    border-color: oklch(0.76 0.027 220);
+    @apply shadow-[0_3px_10px_-10px_rgba(16,32,48,0.25)];
+  }
+  .btn-bubble:disabled {
+    background: oklch(0.9 0.02 220);
+    color: oklch(0.82 0.01 220);
+    border-color: oklch(0.86 0.02 220);
+    @apply cursor-not-allowed opacity-75 shadow-none;
+  }
+  .dark .btn-bubble {
+    background: oklch(0.4 0.05 220);
+    color: oklch(0.94 0.01 220);
+    border: 1px solid oklch(0.46 0.05 220);
+    @apply shadow-[0_4px_12px_-10px_rgba(0,6,16,0.45)];
+  }
+  .dark .btn-bubble:hover {
+    background: oklch(0.38 0.045 220);
+    border-color: oklch(0.44 0.048 220);
+    @apply shadow-[0_6px_14px_-10px_rgba(0,8,20,0.5)];
+  }
+  .dark .btn-bubble:active {
+    background: oklch(0.36 0.045 220);
+    border-color: oklch(0.42 0.045 220);
+    @apply shadow-[0_3px_10px_-10px_rgba(0,10,24,0.55)];
+  }
+}

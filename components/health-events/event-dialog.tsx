@@ -295,7 +295,7 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
             className={cn(
               "rounded-xl px-4 py-2.5 text-sm font-medium transition-all",
               title.trim() && startDate
-                ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+                ? "btn-bubble"
                 : "bg-muted text-muted-foreground cursor-not-allowed"
             )}
           >

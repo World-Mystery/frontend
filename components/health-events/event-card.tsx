@@ -266,7 +266,7 @@ export function EventCard({ event, onEdit, onDelete, onMarkResolved, onUpdateEnt
                               setEditingEntryId(null)
                             }
                           }}
-                          className="rounded-lg bg-primary px-3 py-1 text-xs text-primary-foreground"
+                          className="btn-bubble px-3 py-1 text-xs"
                         >
                           保存
                         </button>

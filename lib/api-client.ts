@@ -12,6 +12,11 @@ export function getAuthToken(): string {
   )
 }
 
+function getStoredMemberId(): string {
+  if (typeof window === "undefined") return ""
+  return localStorage.getItem("aiHealthy.activeMemberId") ?? ""
+}
+
 export async function apiFetch(
   path: string,
   options: RequestInit = {}
@@ -19,6 +24,8 @@ export async function apiFetch(
   const headers = new Headers(options.headers || {})
   const token = getAuthToken()
   if (token) headers.set("token", token)
+  const memberIdHeader = headers.get("memberId") ?? getStoredMemberId()
+  if (memberIdHeader) headers.set("memberId", memberIdHeader)
   if (options.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json")
   }

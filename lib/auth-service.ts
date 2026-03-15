@@ -83,7 +83,6 @@ export const login = async (
       token: loginData.token,
     };
   } catch (error) {
-    console.error('Login error:', error);
     throw error;
   }
 };
@@ -115,7 +114,6 @@ export const register = async (
       setSavedCredentials(username, password);
     }
   } catch (error) {
-    console.error('Register error:', error);
     throw error;
   }
 };
@@ -158,7 +156,6 @@ export const validateToken = async (token: string): Promise<boolean> => {
 
     return true;
   } catch (error) {
-    console.error('Token validation error:', error);
     return false;
   }
 };

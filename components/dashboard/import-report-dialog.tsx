@@ -154,7 +154,7 @@ export function ImportReportDialog({ open, onOpenChange }: ImportReportDialogPro
               className={cn(
                 "flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium transition-all",
                 file && !uploading
-                  ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+                  ? "btn-bubble"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
