@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { TopNav } from "@/components/top-nav"
 import { LeftSidebar } from "@/components/left-sidebar"
@@ -19,17 +19,17 @@ export default function Home() {
   }
 
   return (
-    <ProtectedRoute>
-      <div className="flex h-screen flex-col">
-        <TopNav activeNav={activeNav} onNavChange={setActiveNav} />
-        <div className="flex flex-1 overflow-hidden">
-          {activeNav === "qa" && <LeftSidebar onNewChat={handleNewChat} />}
-          {activeNav === "qa" && <ChatArea key={chatKey} />}
-          {activeNav === "dashboard" && <DashboardView />}
-          {activeNav === "events" && <HealthEventsView />}
-          {activeNav === "plans" && <HealthPlanView />}
+      <ProtectedRoute>
+        <div className="flex h-screen flex-col">
+          <TopNav activeNav={activeNav} onNavChange={setActiveNav} />
+          <div className="flex flex-1 overflow-hidden">
+            {activeNav === "qa" && <LeftSidebar onNewChat={handleNewChat} />}
+            {activeNav === "qa" && <ChatArea key={chatKey} />}
+            {activeNav === "dashboard" && <DashboardView />}
+            {activeNav === "events" && <HealthEventsView />}
+            {activeNav === "plans" && <HealthPlanView />}
+          </div>
         </div>
-      </div>
-    </ProtectedRoute>
+      </ProtectedRoute>
   )
 }

@@ -224,7 +224,7 @@ function TimelineEventNode({
   )
 }
 
-export function TimelineView({ events, onEdit, onMarkResolved }: TimelineViewProps) {
+export function TimelineView({ events, onEdit}: TimelineViewProps) {
   const groups = groupByMonth(events)
 
   if (events.length === 0) {

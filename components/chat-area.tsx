@@ -92,21 +92,21 @@ export function ChatArea() {
         memberId,
         onDelta: (delta) => {
           setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === assistantId
-                ? { ...msg, content: msg.content + delta }
-                : msg
-            )
+              prev.map((msg) =>
+                  msg.id === assistantId
+                      ? { ...msg, content: msg.content + delta }
+                      : msg
+              )
           )
         },
       })
     } catch (error) {
       setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === assistantId
-            ? { ...msg, content: "AI 响应失败，请稍后再试。" }
-            : msg
-        )
+          prev.map((msg) =>
+              msg.id === assistantId
+                  ? { ...msg, content: "AI 响应失败，请稍后再试。" }
+                  : msg
+          )
       )
     } finally {
       setIsTyping(false)
@@ -129,202 +129,202 @@ export function ChatArea() {
   }, [messages])
 
   return (
-    <div className="relative flex flex-1 flex-col overflow-hidden">
-      {/* Main scrollable area */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
-        {isEmptyState ? (
-          /* Empty state: centered greeting */
-          <div className="flex min-h-full flex-col items-center justify-center px-6 pb-64">
-            <div className="mb-10 flex h-16 w-16 items-center justify-center rounded-[20px] bg-primary/[0.07]">
-              <Sparkles className="h-8 w-8 text-primary/80" />
-            </div>
-            <h1 className="mb-2 text-balance text-center text-2xl font-semibold tracking-tight text-foreground/90">
-              {"你好，有什么可以帮你的吗？"}
-            </h1>
-            <p className="max-w-sm text-balance text-center text-sm leading-relaxed text-muted-foreground/80">
-              {"我是你的健康助手，可以帮你分析体检报告、提供健康建议、制定康复计划。"}
-            </p>
-          </div>
-        ) : (
-          /* Messages */
-          <div className="mx-auto max-w-3xl px-6 pb-64 pt-6">
-            {messages.map((msg) => {
-              const isAssistant = msg.role === "assistant"
-              const isLatestAssistant = isAssistant && msg.id === latestAssistantId
-              const showTypingDots = isLatestAssistant && isTyping && msg.content.length === 0
+      <div className="relative flex flex-1 flex-col overflow-hidden">
+        {/* Main scrollable area */}
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
+          {isEmptyState ? (
+              /* Empty state: centered greeting */
+              <div className="flex min-h-full flex-col items-center justify-center px-6 pb-64">
+                <div className="mb-10 flex h-16 w-16 items-center justify-center rounded-[20px] bg-primary/[0.07]">
+                  <Sparkles className="h-8 w-8 text-primary/80" />
+                </div>
+                <h1 className="mb-2 text-balance text-center text-2xl font-semibold tracking-tight text-foreground/90">
+                  {"你好，有什么可以帮你的吗？"}
+                </h1>
+                <p className="max-w-sm text-balance text-center text-sm leading-relaxed text-muted-foreground/80">
+                  {"我是你的健康助手，可以帮你分析体检报告、提供健康建议、制定康复计划。"}
+                </p>
+              </div>
+          ) : (
+              /* Messages */
+              <div className="mx-auto max-w-3xl px-6 pb-64 pt-6">
+                {messages.map((msg) => {
+                  const isAssistant = msg.role === "assistant"
+                  const isLatestAssistant = isAssistant && msg.id === latestAssistantId
+                  const showTypingDots = isLatestAssistant && isTyping && msg.content.length === 0
 
-              return (
-                <div
-                  key={msg.id}
-                  className={cn(
-                    "mb-5 flex",
-                    msg.role === "user" ? "justify-end" : "justify-start"
-                  )}
-                >
-                  {isAssistant && (
-                    <div className="mr-3 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/[0.07]">
-                      <Sparkles className="h-4 w-4 text-primary/70" />
-                    </div>
-                  )}
-                  <div
-                    className={cn(
-                      "max-w-[78%] text-[14.5px] leading-[1.65]",
-                      msg.role === "user"
-                        ? "rounded-[20px] rounded-br-md bg-primary/[0.08] px-5 py-3 text-foreground"
-                        : "text-foreground/90"
-                    )}
-                  >
-                    {isAssistant ? (
-                      <div className="space-y-3 [&_p]:leading-[1.65]">
-                        {showTypingDots ? (
-                          <div className="flex items-center gap-1 py-1">
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/30 [animation-delay:0ms]" />
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/30 [animation-delay:150ms]" />
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/30 [animation-delay:300ms]" />
-                          </div>
-                        ) : (
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                              p: ({ children }) => <p className="leading-[1.65]">{children}</p>,
-                              a: ({ children, href }) => (
-                                <a
-                                  href={href}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-primary underline underline-offset-4"
-                                >
-                                  {children}
-                                </a>
-                              ),
-                              ul: ({ children }) => <ul className="list-disc pl-5">{children}</ul>,
-                              ol: ({ children }) => <ol className="list-decimal pl-5">{children}</ol>,
-                              li: ({ children }) => <li className="my-1">{children}</li>,
-                              blockquote: ({ children }) => (
-                                <blockquote className="border-l-2 border-primary/30 pl-3 text-foreground/80">
-                                  {children}
-                                </blockquote>
-                              ),
-                              code: ({ className, children }) => {
-                                const isInline = !className
-                                if (isInline) {
-                                  return (
-                                    <code className="rounded bg-muted px-1.5 py-0.5 text-[0.92em]">
-                                      {children}
-                                    </code>
-                                  )
-                                }
-                                return <code className={className}>{children}</code>
-                              },
-                              pre: ({ children }) => (
-                                <pre className="overflow-x-auto rounded-lg bg-muted px-4 py-3 text-[0.9em]">
+                  return (
+                      <div
+                          key={msg.id}
+                          className={cn(
+                              "mb-5 flex",
+                              msg.role === "user" ? "justify-end" : "justify-start"
+                          )}
+                      >
+                        {isAssistant && (
+                            <div className="mr-3 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/[0.07]">
+                              <Sparkles className="h-4 w-4 text-primary/70" />
+                            </div>
+                        )}
+                        <div
+                            className={cn(
+                                "max-w-[78%] text-[14.5px] leading-[1.65]",
+                                msg.role === "user"
+                                    ? "rounded-[20px] rounded-br-md bg-primary/[0.08] px-5 py-3 text-foreground"
+                                    : "text-foreground/90"
+                            )}
+                        >
+                          {isAssistant ? (
+                              <div className="space-y-3 [&_p]:leading-[1.65]">
+                                {showTypingDots ? (
+                                    <div className="flex items-center gap-1 py-1">
+                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/30 [animation-delay:0ms]" />
+                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/30 [animation-delay:150ms]" />
+                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/30 [animation-delay:300ms]" />
+                                    </div>
+                                ) : (
+                                    <ReactMarkdown
+                                        remarkPlugins={[remarkGfm]}
+                                        components={{
+                                          p: ({ children }) => <p className="leading-[1.65]">{children}</p>,
+                                          a: ({ children, href }) => (
+                                              <a
+                                                  href={href}
+                                                  target="_blank"
+                                                  rel="noreferrer"
+                                                  className="text-primary underline underline-offset-4"
+                                              >
+                                                {children}
+                                              </a>
+                                          ),
+                                          ul: ({ children }) => <ul className="list-disc pl-5">{children}</ul>,
+                                          ol: ({ children }) => <ol className="list-decimal pl-5">{children}</ol>,
+                                          li: ({ children }) => <li className="my-1">{children}</li>,
+                                          blockquote: ({ children }) => (
+                                              <blockquote className="border-l-2 border-primary/30 pl-3 text-foreground/80">
+                                                {children}
+                                              </blockquote>
+                                          ),
+                                          code: ({ className, children }) => {
+                                            const isInline = !className
+                                            if (isInline) {
+                                              return (
+                                                  <code className="rounded bg-muted px-1.5 py-0.5 text-[0.92em]">
+                                                    {children}
+                                                  </code>
+                                              )
+                                            }
+                                            return <code className={className}>{children}</code>
+                                          },
+                                          pre: ({ children }) => (
+                                              <pre className="overflow-x-auto rounded-lg bg-muted px-4 py-3 text-[0.9em]">
                                   {children}
                                 </pre>
-                              ),
-                              h1: ({ children }) => <h1 className="text-lg font-semibold">{children}</h1>,
-                              h2: ({ children }) => <h2 className="text-base font-semibold">{children}</h2>,
-                              h3: ({ children }) => <h3 className="text-[15px] font-semibold">{children}</h3>,
-                              table: ({ children }) => (
-                                <div className="overflow-x-auto">
-                                  <table className="w-full border-collapse text-sm">{children}</table>
-                                </div>
-                              ),
-                              th: ({ children }) => (
-                                <th className="border border-border/60 bg-muted px-2 py-1 text-left">
-                                  {children}
-                                </th>
-                              ),
-                              td: ({ children }) => (
-                                <td className="border border-border/60 px-2 py-1">{children}</td>
-                              ),
-                            }}
-                          >
-                            {msg.content}
-                          </ReactMarkdown>
-                        )}
+                                          ),
+                                          h1: ({ children }) => <h1 className="text-lg font-semibold">{children}</h1>,
+                                          h2: ({ children }) => <h2 className="text-base font-semibold">{children}</h2>,
+                                          h3: ({ children }) => <h3 className="text-[15px] font-semibold">{children}</h3>,
+                                          table: ({ children }) => (
+                                              <div className="overflow-x-auto">
+                                                <table className="w-full border-collapse text-sm">{children}</table>
+                                              </div>
+                                          ),
+                                          th: ({ children }) => (
+                                              <th className="border border-border/60 bg-muted px-2 py-1 text-left">
+                                                {children}
+                                              </th>
+                                          ),
+                                          td: ({ children }) => (
+                                              <td className="border border-border/60 px-2 py-1">{children}</td>
+                                          ),
+                                        }}
+                                    >
+                                      {msg.content}
+                                    </ReactMarkdown>
+                                )}
+                              </div>
+                          ) : (
+                              <p className="whitespace-pre-wrap">{msg.content}</p>
+                          )}
+                        </div>
                       </div>
-                    ) : (
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-            <div ref={messagesEndRef} />
-          </div>
-        )}
-      </div>
-
-      {/* Bottom floating area with gradient fade */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col">
-        {/* Gradient fade overlay - only when there are messages */}
-        {!isEmptyState && (
-          <div className="h-32 bg-gradient-to-t from-background via-background/80 to-transparent" />
-        )}
-
-        {/* Suggestion chips + input area */}
-        <div className="pointer-events-auto bg-background pb-5">
-          <div className="mx-auto max-w-3xl px-6">
-            {/* Suggestion cards - only visible when no messages */}
-            {isEmptyState && (
-              <div className="mb-10 grid grid-cols-4 gap-2.5">
-                {welcomeSuggestions.map((s) => {
-                  const Icon = s.icon
-                  return (
-                    <button
-                      key={s.title}
-                      onClick={() => handleSend(s.desc)}
-                      className="group flex flex-col gap-2.5 rounded-2xl border border-border/60 bg-card/80 px-4 pb-4 pt-3.5 text-left backdrop-blur-sm transition-all hover:border-primary/20 hover:bg-primary/[0.03] hover:shadow-sm"
-                    >
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/[0.06] transition-colors group-hover:bg-primary/[0.1]">
-                        <Icon className="h-4 w-4 text-primary/60 transition-colors group-hover:text-primary/80" />
-                      </div>
-                      <div>
-                        <p className="text-[13px] font-medium text-foreground/80 group-hover:text-foreground/90">
-                          {s.title}
-                        </p>
-                        <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground/60">
-                          {s.desc}
-                        </p>
-                      </div>
-                    </button>
                   )
                 })}
+                <div ref={messagesEndRef} />
               </div>
-            )}
+          )}
+        </div>
 
-            {/* Input bar */}
-            <div className="flex items-end gap-2 rounded-[20px] border border-border/50 bg-card px-4 pt-4 pb-2 shadow-[0_1px_6px_rgba(0,0,0,0.04)] transition-all focus-within:border-primary/25 focus-within:shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
-              <button
-                className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors hover:bg-accent/60"
-                aria-label="添加附件"
-              >
-                <Paperclip className="h-[18px] w-[18px] text-muted-foreground/50" />
-              </button>
+        {/* Bottom floating area with gradient fade */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col">
+          {/* Gradient fade overlay - only when there are messages */}
+          {!isEmptyState && (
+              <div className="h-32 bg-gradient-to-t from-background via-background/80 to-transparent" />
+          )}
 
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="输入你的健康问题..."
-                rows={2}
-                className="max-h-40 min-h-[52px] flex-1 resize-none bg-transparent pt-1.5 pb-14 text-[14px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/50"
-              />
+          {/* Suggestion chips + input area */}
+          <div className="pointer-events-auto bg-background pb-5">
+            <div className="mx-auto max-w-3xl px-6">
+              {/* Suggestion cards - only visible when no messages */}
+              {isEmptyState && (
+                  <div className="mb-10 grid grid-cols-4 gap-2.5">
+                    {welcomeSuggestions.map((s) => {
+                      const Icon = s.icon
+                      return (
+                          <button
+                              key={s.title}
+                              onClick={() => handleSend(s.desc)}
+                              className="group flex flex-col gap-2.5 rounded-2xl border border-border/60 bg-card/80 px-4 pb-4 pt-3.5 text-left backdrop-blur-sm transition-all hover:border-primary/20 hover:bg-primary/[0.03] hover:shadow-sm"
+                          >
+                            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/[0.06] transition-colors group-hover:bg-primary/[0.1]">
+                              <Icon className="h-4 w-4 text-primary/60 transition-colors group-hover:text-primary/80" />
+                            </div>
+                            <div>
+                              <p className="text-[13px] font-medium text-foreground/80 group-hover:text-foreground/90">
+                                {s.title}
+                              </p>
+                              <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground/60">
+                                {s.desc}
+                              </p>
+                            </div>
+                          </button>
+                      )
+                    })}
+                  </div>
+              )}
 
-              <button
-                onClick={() => handleSend()}
-                disabled={!input.trim() || isTyping}
-                className="mb-2 flex h-8 w-8 shrink-0 items-center justify-center btn-bubble disabled:opacity-50"
-                aria-label="发送"
-              >
-                <Send className="h-4 w-4 text-sky-900" />
-              </button>
+              {/* Input bar */}
+              <div className="flex items-end gap-2 rounded-[20px] border border-border/50 bg-card px-4 pt-4 pb-2 shadow-[0_1px_6px_rgba(0,0,0,0.04)] transition-all focus-within:border-primary/25 focus-within:shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+                <button
+                    className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors hover:bg-accent/60"
+                    aria-label="添加附件"
+                >
+                  <Paperclip className="h-[18px] w-[18px] text-muted-foreground/50" />
+                </button>
+
+                <textarea
+                    ref={textareaRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="输入你的健康问题..."
+                    rows={2}
+                    className="max-h-40 min-h-[52px] flex-1 resize-none bg-transparent pt-1.5 pb-14 text-[14px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/50"
+                />
+
+                <button
+                    onClick={() => handleSend()}
+                    disabled={!input.trim() || isTyping}
+                    className="mb-2 flex h-8 w-8 shrink-0 items-center justify-center btn-bubble disabled:opacity-50"
+                    aria-label="发送"
+                >
+                  <Send className="h-4 w-4 text-sky-900" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
   )
 }
 

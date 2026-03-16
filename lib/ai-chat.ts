@@ -7,10 +7,10 @@ export type StreamChatParams = {
 }
 
 export async function streamAiChat({
-  message,
-  memberId,
-  onDelta,
-}: StreamChatParams): Promise<void> {
+                                     message,
+                                     memberId,
+                                     onDelta,
+                                   }: StreamChatParams): Promise<void> {
   const res = await apiFetch("/ai/chat", {
     method: "POST",
     headers: {
