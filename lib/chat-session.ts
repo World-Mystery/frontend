@@ -15,10 +15,16 @@ export async function listChatSessions(): Promise<ChatSession[]> {
   return Array.isArray(data?.data) ? data.data : []
 }
 
-export async function addChatSession(): Promise<void> {
+export async function addChatSession(): Promise<number | undefined> {
   const res = await apiFetch("/chat-session/add", { method: "POST" })
   if (!res.ok) {
     throw new Error(`Failed to add session: ${res.status}`)
+  }
+  try {
+    const data = await res.json()
+    return data?.data?.id ?? data?.id
+  } catch {
+    return undefined
   }
 }
 

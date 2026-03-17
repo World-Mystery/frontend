@@ -7,6 +7,7 @@ import remarkGfm from "remark-gfm"
 import { cn } from "@/lib/utils"
 import { ensureActiveMemberId } from "@/lib/member"
 import { streamAiChat } from "@/lib/ai-chat"
+import { addChatHistory, listChatHistory } from "@/lib/chat-history"
 
 interface Message {
   id: string
@@ -37,7 +38,11 @@ const welcomeSuggestions = [
   },
 ]
 
-export function ChatArea() {
+type ChatAreaProps = {
+  sessionId: number | null
+}
+
+export function ChatArea({ sessionId }: ChatAreaProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isTyping, setIsTyping] = useState(false)
@@ -60,9 +65,41 @@ export function ChatArea() {
     }
   }, [input])
 
+  useEffect(() => {
+    let cancelled = false
+    const loadHistory = async () => {
+      if (!sessionId) {
+        setMessages([])
+        setIsTyping(false)
+        return
+      }
+      try {
+        const items = await listChatHistory(sessionId)
+        if (cancelled) return
+        setMessages(
+          items.map((item) => ({
+            id: String(item.id),
+            role: item.role,
+            content: item.message ?? "",
+          }))
+        )
+      } catch (error) {
+        if (!cancelled) {
+          setMessages([])
+        }
+      } finally {
+        if (!cancelled) setIsTyping(false)
+      }
+    }
+    void loadHistory()
+    return () => {
+      cancelled = true
+    }
+  }, [sessionId])
+
   const handleSend = async (text?: string) => {
     const content = text || input.trim()
-    if (!content) return
+    if (!content || !sessionId) return
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -77,6 +114,8 @@ export function ChatArea() {
       content: "",
     }
 
+    let assistantContent = ""
+
     setMessages((prev) => [...prev, userMsg, assistantMsg])
     setInput("")
     setIsTyping(true)
@@ -87,10 +126,13 @@ export function ChatArea() {
         throw new Error("Missing memberId")
       }
 
+      await addChatHistory(sessionId, content, "user")
+
       await streamAiChat({
         message: content,
         memberId,
         onDelta: (delta) => {
+          assistantContent += delta
           setMessages((prev) =>
               prev.map((msg) =>
                   msg.id === assistantId
@@ -100,6 +142,10 @@ export function ChatArea() {
           )
         },
       })
+
+      if (assistantContent) {
+        await addChatHistory(sessionId, assistantContent, "assistant")
+      }
     } catch (error) {
       setMessages((prev) =>
           prev.map((msg) =>
@@ -314,7 +360,7 @@ export function ChatArea() {
 
                 <button
                     onClick={() => handleSend()}
-                    disabled={!input.trim() || isTyping}
+                    disabled={!input.trim() || isTyping || !sessionId}
                     className="mb-2 flex h-8 w-8 shrink-0 items-center justify-center btn-bubble disabled:opacity-50"
                     aria-label="发送"
                 >
@@ -327,7 +373,6 @@ export function ChatArea() {
       </div>
   )
 }
-
 
 
 

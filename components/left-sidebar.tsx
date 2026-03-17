@@ -9,7 +9,7 @@ import { addChatSession, ChatSession, deleteChatSession, listChatSessions } from
 import { ensureActiveMemberId } from "@/lib/member"
 
 interface LeftSidebarProps {
-  onNewChat: () => void
+  onNewChat: (sessionId?: number) => void
   onSelectSession: (sessionId: number) => void
   activeSessionId?: number | null
 }
@@ -66,9 +66,6 @@ export function LeftSidebar({ onNewChat, onSelectSession, activeSessionId }: Lef
       await ensureActiveMemberId()
       const list = await listChatSessions()
       setSessions(list)
-      if (!activeSessionId && list.length > 0) {
-        onSelectSession(list[0].id)
-      }
       return list
     } catch (e) {
       setError("加载会话失败，请稍后重试。")
@@ -93,12 +90,13 @@ export function LeftSidebar({ onNewChat, onSelectSession, activeSessionId }: Lef
     setError(null)
     try {
       await ensureActiveMemberId()
-      await addChatSession()
+      const newId = await addChatSession()
       const list = await refreshSessions()
-      if (list && list.length > 0) {
-        onSelectSession(list[0].id)
+      const targetId = newId ?? list?.[0]?.id
+      if (targetId) {
+        onSelectSession(targetId)
       }
-      onNewChat()
+      onNewChat(targetId)
       setExpanded(false)
     } catch (e) {
       setError("新建会话失败，请稍后重试。")
