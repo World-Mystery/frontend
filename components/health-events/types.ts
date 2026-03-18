@@ -7,7 +7,8 @@ export interface TimelineEntry {
 }
 
 export interface HealthEvent {
-  id: string
+  id: string | number
+  memberId?: number
   title: string
   status: EventStatus
   startDate: string

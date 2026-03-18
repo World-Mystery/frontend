@@ -10,8 +10,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Plus, X } from "lucide-react"
+import { Plus, X, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { createHealthEvent, updateHealthEvent, mapBackendEventToUI, formatDate, getTodayDateString } from "@/lib/health-event"
+import { getStoredMemberId } from "@/lib/member"
 import type { HealthEvent, EventStatus } from "./types"
 
 interface EventDialogProps {
@@ -33,6 +35,8 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
   const [resolution, setResolution] = useState("")
   const [newSymptom, setNewSymptom] = useState("")
   const [newMedication, setNewMedication] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (event) {
@@ -46,7 +50,7 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
       setResolution(event.resolution || "")
     } else {
       setTitle("")
-      setStartDate(new Date().toISOString().split("T")[0])
+      setStartDate(getTodayDateString())
       setStatus("active")
       setDiagnosis("")
       setNextFollowUp("")
@@ -54,6 +58,7 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
       setMedications([])
       setResolution("")
     }
+    setError(null)
   }, [event, open])
 
   const handleAddSymptom = () => {
@@ -70,27 +75,54 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
     }
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim() || !startDate) return
-    const saved: HealthEvent = {
-      id: event?.id || `evt-${Date.now()}`,
-      title: title.trim(),
-      startDate,
-      status,
-      diagnosis: diagnosis.trim() || undefined,
-      nextFollowUp: status === "active" && nextFollowUp ? nextFollowUp : undefined,
-      resolvedDate: status === "recovered" ? (event?.resolvedDate || new Date().toISOString().split("T")[0]) : undefined,
-      symptoms,
-      medications,
-      resolution: status === "recovered" ? resolution.trim() || undefined : undefined,
-      aiGenerated: event?.aiGenerated || false,
-      aiAdvice: event?.aiAdvice,
-      timeline: event?.timeline || [
-        { id: `t-${Date.now()}`, date: startDate, description: `${title.trim()} 开始记录` },
-      ],
+
+    setSaving(true)
+    setError(null)
+
+    try {
+      const memberId = getStoredMemberId()
+      if (!memberId) {
+        throw new Error("未能获取成员信息")
+      }
+
+      let result: any
+
+      if (isNew) {
+        // 创建新事件
+        result = await createHealthEvent({
+          eventName: title.trim(),
+          diseaseName: diagnosis.trim() || undefined,
+          status: status === "active" ? "进行中" : "已康复",
+          symptoms,
+          medications,
+          source: "手工",
+          memberId,
+        })
+      } else {
+        // 更新现有事件
+        const eventId = typeof event?.id === "number" ? event.id : parseInt(String(event?.id), 10)
+        result = await updateHealthEvent(eventId, {
+          eventName: title.trim(),
+          diseaseName: diagnosis.trim() || undefined,
+          status: status === "active" ? "进行中" : "已康复",
+          symptoms,
+          medications,
+        })
+      }
+
+      // 将后端返回的数据转换为前端格式
+      const savedEvent = mapBackendEventToUI(result)
+      onSave(savedEvent)
+      onOpenChange(false)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "保存失败，请重试"
+      setError(message)
+      console.error("Failed to save event:", err)
+    } finally {
+      setSaving(false)
     }
-    onSave(saved)
-    onOpenChange(false)
   }
 
   const inputClass =
@@ -106,6 +138,12 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
           </DialogDescription>
         </DialogHeader>
 
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-400">
+            {error}
+          </div>
+        )}
+
         <div className="flex flex-col gap-4">
           {/* Title */}
           <div>
@@ -117,6 +155,7 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
               onChange={(e) => setTitle(e.target.value)}
               placeholder="如：急性肠胃炎"
               className={inputClass}
+              disabled={saving}
             />
           </div>
 
@@ -131,6 +170,7 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 className={inputClass}
+                disabled={saving}
               />
             </div>
             <div>
@@ -140,6 +180,7 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
               <div className="flex gap-2">
                 <button
                   onClick={() => setStatus("active")}
+                  disabled={saving}
                   className={cn(
                     "flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-all",
                     status === "active"
@@ -151,6 +192,7 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
                 </button>
                 <button
                   onClick={() => setStatus("recovered")}
+                  disabled={saving}
                   className={cn(
                     "flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-all",
                     status === "recovered"
@@ -174,38 +216,9 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
               onChange={(e) => setDiagnosis(e.target.value)}
               placeholder="如：慢性浅表性胃炎"
               className={inputClass}
+              disabled={saving}
             />
           </div>
-
-          {/* Follow-up (active only) */}
-          {status === "active" && (
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-foreground">
-                下次跟进日期
-              </label>
-              <input
-                type="date"
-                value={nextFollowUp}
-                onChange={(e) => setNextFollowUp(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-          )}
-
-          {/* Resolution (recovered only) */}
-          {status === "recovered" && (
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-foreground">
-                结果记录
-              </label>
-              <input
-                value={resolution}
-                onChange={(e) => setResolution(e.target.value)}
-                placeholder="如：已停药，完全康复"
-                className={inputClass}
-              />
-            </div>
-          )}
 
           {/* Symptoms */}
           <div>
@@ -218,6 +231,7 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
                   {s}
                   <button
                     onClick={() => setSymptoms(symptoms.filter((_, j) => j !== i))}
+                    disabled={saving}
                     className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full hover:bg-destructive/10 hover:text-destructive"
                   >
                     <X className="h-2.5 w-2.5" />
@@ -232,10 +246,12 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
                 onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddSymptom())}
                 placeholder="添加症状..."
                 className={cn(inputClass, "flex-1")}
+                disabled={saving}
               />
               <button
                 onClick={handleAddSymptom}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors hover:bg-primary/20"
+                disabled={saving}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>
@@ -257,6 +273,7 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
                   {m}
                   <button
                     onClick={() => setMedications(medications.filter((_, j) => j !== i))}
+                    disabled={saving}
                     className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full hover:bg-destructive/10 hover:text-destructive"
                   >
                     <X className="h-2.5 w-2.5" />
@@ -271,10 +288,12 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
                 onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddMedication())}
                 placeholder="添加药物..."
                 className={cn(inputClass, "flex-1")}
+                disabled={saving}
               />
               <button
                 onClick={handleAddMedication}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors hover:bg-primary/20"
+                disabled={saving}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>
@@ -285,20 +304,22 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
         <DialogFooter className="mt-2">
           <button
             onClick={() => onOpenChange(false)}
-            className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            disabled={saving}
+            className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-50"
           >
             取消
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!title.trim() || !startDate}
+            disabled={!title.trim() || !startDate || saving}
             className={cn(
-              "rounded-xl px-4 py-2.5 text-sm font-medium transition-all",
-              title.trim() && startDate
+              "rounded-xl px-4 py-2.5 text-sm font-medium transition-all flex items-center gap-2",
+              title.trim() && startDate && !saving
                 ? "btn-bubble"
                 : "bg-muted text-muted-foreground cursor-not-allowed"
             )}
           >
+            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             {isNew ? "创建事件" : "保存更改"}
           </button>
         </DialogFooter>

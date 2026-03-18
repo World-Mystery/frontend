@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Plus,
   ChevronRight,
@@ -10,24 +10,69 @@ import {
   AlertCircle,
   CheckCircle2,
   CalendarClock,
+  Loader2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ManagementView } from "./management-view"
 import { TimelineView } from "./timeline-view"
 import { EventDialog } from "./event-dialog"
 import { ResolveDialog } from "./resolve-dialog"
-import { initialEvents } from "./mock-data"
+import { listHealthEvents, mapBackendEventToUI, getHealthEventRecords, getTodayDateString } from "@/lib/health-event"
+import { getStoredMemberId } from "@/lib/member"
 import type { HealthEvent } from "./types"
 
 type ViewMode = "management" | "timeline"
 
 export function HealthEventsView() {
-  const [events, setEvents] = useState<HealthEvent[]>(initialEvents)
+  const [events, setEvents] = useState<HealthEvent[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>("management")
   const [searchQuery, setSearchQuery] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState<HealthEvent | null>(null)
   const [resolveTarget, setResolveTarget] = useState<HealthEvent | null>(null)
+
+  // Load events from backend
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const memberId = getStoredMemberId()
+        if (!memberId) {
+          setError("未能获取成员信息，请重新登录")
+          setLoading(false)
+          return
+        }
+
+        const backendEvents = await listHealthEvents(memberId)
+
+        // 为每个事件加载其详细记录
+        const uiEvents = await Promise.all(
+          backendEvents.map(async (event: any) => {
+            try {
+              const records = await getHealthEventRecords(event.id)
+              return mapBackendEventToUI(event, records)
+            } catch {
+              // 如果获取记录失败，仍然返回事件但不包含详细记录
+              return mapBackendEventToUI(event)
+            }
+          })
+        )
+
+        setEvents(uiEvents)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "加载健康事件失败"
+        setError(message)
+        console.error("Failed to load health events:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadEvents()
+  }, [])
 
   // Stats
   const activeCount = events.filter((e) => e.status === "active").length
@@ -62,11 +107,11 @@ export function HealthEventsView() {
   }
 
   const handleDelete = (id: string) => {
-    setEvents((prev) => prev.filter((e) => e.id !== id))
+    setEvents((prev) => prev.filter((e) => String(e.id) !== id))
   }
 
   const handleMarkResolved = (id: string) => {
-    const target = events.find((e) => e.id === id)
+    const target = events.find((e) => String(e.id) === id)
     if (target) {
       setResolveTarget(target)
     }
@@ -74,13 +119,14 @@ export function HealthEventsView() {
 
   const handleConfirmResolve = (resolution: string) => {
     if (!resolveTarget) return
+
     setEvents((prev) =>
       prev.map((e) =>
-        e.id === resolveTarget.id
+        String(e.id) === String(resolveTarget.id)
           ? {
               ...e,
               status: "recovered" as const,
-              resolvedDate: new Date().toISOString().split("T")[0],
+              resolvedDate: getTodayDateString(),
               resolution,
               nextFollowUp: undefined,
             }
@@ -98,7 +144,7 @@ export function HealthEventsView() {
   const handleUpdateEntry = (eventId: string, updatedEntry: HealthEvent["timeline"][0]) => {
     setEvents((prev) =>
       prev.map((e) =>
-        e.id === eventId
+        String(e.id) === eventId
           ? {
               ...e,
               timeline: e.timeline.map((t) => (t.id === updatedEntry.id ? updatedEntry : t)),
@@ -111,6 +157,24 @@ export function HealthEventsView() {
   const handleNewEvent = () => {
     setEditingEvent(null)
     setDialogOpen(true)
+  }
+
+  if (error && !loading) {
+    return (
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-6xl px-6 py-6">
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900/30 dark:bg-red-950/20">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-red-900 dark:text-red-200">加载失败</h3>
+                <p className="text-sm text-red-800 dark:text-red-300 mt-1">{error}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -208,20 +272,37 @@ export function HealthEventsView() {
           </div>
         </div>
 
-        {/* Content */}
-        {viewMode === "management" ? (
-          <ManagementView
-            events={filteredEvents}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onMarkResolved={handleMarkResolved}
-            onUpdateEntry={handleUpdateEntry}
-          />
+        {/* Loading State */}
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">加载中...</p>
+            </div>
+          </div>
+        ) : filteredEvents.length === 0 ? (
+          <div className="rounded-xl border border-border/60 bg-card p-8 text-center">
+            <AlertCircle className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">暂无健康事件记录</p>
+          </div>
         ) : (
-          <TimelineView
-            events={filteredEvents}
-            onEdit={handleEdit}
-          />
+          <>
+            {/* Content */}
+            {viewMode === "management" ? (
+              <ManagementView
+                events={filteredEvents}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onMarkResolved={handleMarkResolved}
+                onUpdateEntry={handleUpdateEntry}
+              />
+            ) : (
+              <TimelineView
+                events={filteredEvents}
+                onEdit={handleEdit}
+              />
+            )}
+          </>
         )}
       </div>
 

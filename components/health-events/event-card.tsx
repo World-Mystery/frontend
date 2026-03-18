@@ -129,7 +129,7 @@ export function EventCard({ event, onEdit, onDelete, onMarkResolved, onUpdateEnt
         <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
           {isActive && (
             <button
-              onClick={() => onMarkResolved(event.id)}
+              onClick={() => onMarkResolved(String(event.id))}
               className="flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-emerald-500/10"
               title="标记为已康复"
             >
@@ -144,7 +144,7 @@ export function EventCard({ event, onEdit, onDelete, onMarkResolved, onUpdateEnt
             <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
           </button>
           <button
-            onClick={() => onDelete(event.id)}
+            onClick={() => onDelete(String(event.id))}
             className="flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-destructive/10"
             title="删除"
           >
@@ -258,7 +258,7 @@ export function EventCard({ event, onEdit, onDelete, onMarkResolved, onUpdateEnt
                         <button
                           onClick={() => {
                             if (editDate && editDescription.trim()) {
-                              onUpdateEntry(event.id, {
+                              onUpdateEntry(String(event.id), {
                                 ...entry,
                                 date: editDate,
                                 description: editDescription.trim(),
