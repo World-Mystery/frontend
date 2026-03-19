@@ -30,9 +30,20 @@ export async function apiFetch(
     headers.set("Content-Type", "application/json")
   }
 
-  return fetch(`${NORMALIZED_BASE_URL}${path}`, {
+  const fullUrl = `${NORMALIZED_BASE_URL}${path}`
+  console.log(`API Request: ${fullUrl}`)
+  console.log("Headers:", {
+    token: token ? "***" : "not set",
+    memberId: memberIdHeader || "not set",
+  })
+
+  const response = await fetch(fullUrl, {
     ...options,
     headers,
   })
+
+  console.log(`API Response for ${path}: ${response.status}`)
+
+  return response
 }
 

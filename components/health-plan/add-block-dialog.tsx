@@ -10,6 +10,7 @@ import {
   Loader2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { apiFetch } from "@/lib/api-client"
 import { categoryMeta, type ScheduleBlock, type BlockCategory, type AiFeedback } from "./types"
 
 interface AddBlockDialogProps {
@@ -144,6 +145,44 @@ export function AddBlockDialog({
   const [feedback, setFeedback] = useState<AiFeedback | null>(null)
   const [evaluating, setEvaluating] = useState(false)
   const [error, setError] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+
+  // Helper to convert time string to LocalDateTime format
+  const timeToLocalDateTime = (time: string): string => {
+    const [h, m] = time.split(":").map(Number)
+    const now = new Date()
+    now.setHours(h, m, 0, 0)
+    return now.toISOString().slice(0, 19) // "2026-03-19T12:00:00"
+  }
+
+  // Helper to convert BlockCategory to schedule_type string
+  const categoryToScheduleType = (cat: BlockCategory): string => {
+    const typeMap: Record<BlockCategory, string> = {
+      meal: "餐饮",
+      exercise: "运动",
+      rest: "休息",
+      medication: "用药",
+      checkup: "检查",
+      custom: "自定义",
+    }
+    return typeMap[cat]
+  }
+
+  // Helper to extract time from datetime (handles string or object)
+  const extractTimeFromDateTime = (dateTime: string | { [key: string]: number }): string => {
+    if (typeof dateTime === "string") {
+      if (dateTime.includes("T")) {
+        return dateTime.substring(11, 16)
+      }
+      return dateTime
+    }
+    if (typeof dateTime === "object" && dateTime !== null) {
+      const hour = dateTime.hour ?? dateTime[0] ?? 0
+      const minute = dateTime.minute ?? dateTime[1] ?? 0
+      return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
+    }
+    return "00:00"
+  }
 
   useEffect(() => {
     setStartTime(defaultTime)
@@ -171,7 +210,7 @@ export function AddBlockDialog({
     return () => clearTimeout(timer)
   }, [title, category, startTime])
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim()) return
     const timeToMin = (time: string) => {
       const [h, m] = time.split(":").map(Number)
@@ -184,38 +223,79 @@ export function AddBlockDialog({
       return
     }
 
-    const block: ScheduleBlock = {
-      id: `custom-${Date.now()}`,
-      startTime,
-      endTime: endTime || startTime,
-      title: title.trim(),
-      category,
-      details: details
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean),
-      aiGenerated: false,
-    }
-    const hasOverlap = (newBlock: ScheduleBlock, existing: ScheduleBlock[]) => {
-      const newStart = timeToMin(newBlock.startTime)
-      const newEnd = timeToMin(newBlock.endTime)
-      for (const b of existing) {
-        const bStart = timeToMin(b.startTime)
-        const bEnd = timeToMin(b.endTime)
-        if (newStart < bEnd && newEnd > bStart) return true
-      }
-      return false
-    }
-
-    if (hasOverlap(block, existingSchedule)) {
+    if (hasOverlap({ startTime, endTime } as any, existingSchedule)) {
       setError("时间冲突，请选择其他时间段")
       return
     }
 
-    onAdd(block)
-    resetForm()
-    onOpenChange(false)
+    setSubmitting(true)
+    try {
+      const payload = {
+        startTime: timeToLocalDateTime(startTime),
+        endTime: timeToLocalDateTime(endTime),
+        title: title.trim(),
+        scheduleType: categoryToScheduleType(category),
+        details: details
+          .split("\n")
+          .map((s) => s.trim())
+          .filter(Boolean),
+      }
+
+      const response = await apiFetch("/health-plan/schedules/add", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        console.log("Add schedule response:", result)
+        const vo = result.data
+        console.log("Schedule VO:", vo)
+        const block: ScheduleBlock = {
+          id: vo.id.toString(),
+          startTime: extractTimeFromDateTime(vo.start_time || vo.startTime),
+          endTime: extractTimeFromDateTime(vo.end_time || vo.endTime),
+          title: vo.title,
+          category,
+          details: vo.details || [],
+          aiGenerated: false,
+        }
+        console.log("Created block:", block)
+        onAdd(block)
+        resetForm()
+        onOpenChange(false)
+      } else {
+        const errorData = await response.json()
+        console.error("Add schedule error:", errorData)
+        setError(errorData.message || "添加日程失败，请重试")
+      }
+    } catch (err) {
+      console.error("Failed to add schedule:", err)
+      if (err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError("网络错误，请检查连接后重试")
+      }
+    } finally {
+      setSubmitting(false)
+    }
   }
+
+  const hasOverlap = (newBlock: any, existing: ScheduleBlock[]) => {
+    const timeToMin = (time: string) => {
+      const [h, m] = time.split(":").map(Number)
+      return h * 60 + m
+    }
+    const newStart = timeToMin(newBlock.startTime)
+    const newEnd = timeToMin(newBlock.endTime)
+    for (const b of existing) {
+      const bStart = timeToMin(b.startTime)
+      const bEnd = timeToMin(b.endTime)
+      if (newStart < bEnd && newEnd > bStart) return true
+    }
+    return false
+  }
+
 
   const resetForm = () => {
     setTitle("")
@@ -383,21 +463,23 @@ export function AddBlockDialog({
           <div className="flex items-center justify-end gap-2 border-t border-border/40 px-5 py-3">
             <button
               onClick={handleClose}
-              className="rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              disabled={submitting}
+              className="rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
             >
               取消
             </button>
             <button
               onClick={handleSubmit}
-              disabled={!title.trim()}
+              disabled={!title.trim() || submitting}
               className={cn(
-                "rounded-xl px-4 py-2 text-sm font-medium text-primary-foreground transition-all",
-                title.trim()
+                "rounded-xl px-4 py-2 text-sm font-medium text-primary-foreground transition-all flex items-center gap-2",
+                title.trim() && !submitting
                   ? "btn-bubble"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
-              添加到日程
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              {submitting ? "添加中..." : "添加到日程"}
             </button>
           </div>
         </div>
