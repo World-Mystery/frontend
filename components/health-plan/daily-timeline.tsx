@@ -175,15 +175,6 @@ function ScheduleBlockCard({
                           {d}
                         </span>
                       ))}
-                  {!isExpanded && block.details.length > 2 && (
-                    <span className={cn(
-                      "inline-flex items-center rounded-md px-1.5 py-0 text-[9px] font-medium",
-                      meta.bgLight,
-                      meta.textColor
-                    )}>
-                      +{block.details.length - 2}
-                    </span>
-                  )}
                 </div>
               )}
             </>
