@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
-import { Pencil, Check, X, Plus, Trash2 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Pencil, Check, X, Plus } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
+import type { Profile, ProfileUpdatePayload } from "@/lib/profile"
 
 interface TagGroup {
   id: string
@@ -11,34 +11,33 @@ interface TagGroup {
   tags: string[]
 }
 
-const initialProfile: TagGroup[] = [
-  { id: "allergy", label: "过敏原", tags: ["青霉素", "花粉"] },
-  { id: "chronic", label: "基础病/慢性病", tags: ["高血压", "高血脂"] },
-  { id: "family", label: "家族病史", tags: ["糖尿病", "冠心病"] },
-  { id: "surgery", label: "既往手术史", tags: ["阑尾切除 (2015)"] },
-  { id: "tcm", label: "中医体质", tags: ["气虚质", "偏寒"] },
-]
-
-const initialLifestyle: TagGroup[] = [
-  { id: "smoking", label: "吸烟史", tags: ["已戒烟 3 年"] },
-  { id: "drinking", label: "饮酒史", tags: ["偶尔少量"] },
-  { id: "sleep", label: "平均睡眠时长", tags: ["6.5 小时/天"] },
-]
-
 function EditableTagGroup({
   group,
   onUpdate,
+  disabled,
+  saving,
 }: {
   group: TagGroup
-  onUpdate: (id: string, tags: string[]) => void
+  onUpdate: (id: string, tags: string[]) => Promise<void>
+  disabled?: boolean
+  saving?: boolean
 }) {
   const [isEditing, setIsEditing] = useState(false)
   const [tags, setTags] = useState(group.tags)
   const [newTag, setNewTag] = useState("")
 
-  const handleSave = () => {
-    onUpdate(group.id, tags)
+  useEffect(() => {
+    setTags(group.tags)
+  }, [group.tags])
+
+  const handleSave = async () => {
+    // If user typed but didn't click "+", include it before saving
+    const trimmed = newTag.trim()
+    const nextTags = trimmed && !tags.includes(trimmed) ? [...tags, trimmed] : tags
+    await onUpdate(group.id, nextTags)
     setIsEditing(false)
+    setNewTag("")
+    setTags(nextTags)
   }
 
   const handleCancel = () => {
@@ -83,7 +82,8 @@ function EditableTagGroup({
                 {tag}
                 <button
                   onClick={() => handleRemoveTag(i)}
-                  className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full hover:bg-destructive/10 hover:text-destructive"
+                  disabled={saving}
+                  className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <X className="h-2.5 w-2.5" />
                 </button>
@@ -95,12 +95,14 @@ function EditableTagGroup({
                 onChange={(e) => setNewTag(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="添加..."
-                className="h-6 w-20 rounded border border-border bg-background px-1.5 text-xs text-foreground outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20"
+                disabled={saving}
+                className="h-6 w-24 rounded border border-border bg-background px-1.5 text-xs text-foreground outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
                 autoFocus
               />
               <button
                 onClick={handleAddTag}
-                className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 text-primary transition-colors hover:bg-primary/20"
+                disabled={saving}
+                className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 text-primary transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Plus className="h-3 w-3" />
               </button>
@@ -108,13 +110,15 @@ function EditableTagGroup({
             <div className="ml-auto flex items-center gap-1">
               <button
                 onClick={handleSave}
-                className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 text-primary transition-colors hover:bg-primary/20"
+                disabled={saving}
+                className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 text-primary transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Check className="h-3 w-3" />
               </button>
               <button
                 onClick={handleCancel}
-                className="flex h-6 w-6 items-center justify-center rounded bg-muted text-muted-foreground transition-colors hover:bg-accent"
+                disabled={saving}
+                className="flex h-6 w-6 items-center justify-center rounded bg-muted text-muted-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -133,7 +137,8 @@ function EditableTagGroup({
             )}
             <button
               onClick={() => setIsEditing(true)}
-              className="ml-1 flex h-6 w-6 items-center justify-center rounded-md opacity-0 transition-all hover:bg-accent group-hover:opacity-100"
+              disabled={disabled}
+              className="ml-1 flex h-6 w-6 items-center justify-center rounded-md opacity-0 transition-all hover:bg-accent group-hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40"
               aria-label={`编辑${group.label}`}
             >
               <Pencil className="h-3 w-3 text-muted-foreground" />
@@ -145,16 +150,78 @@ function EditableTagGroup({
   )
 }
 
-export function ProfileLifestyle() {
-  const [profile, setProfile] = useState(initialProfile)
-  const [lifestyle, setLifestyle] = useState(initialLifestyle)
+type ProfileLifestyleProps = {
+  profile: Profile | null
+  loading?: boolean
+  saving?: boolean
+  onUpdate: (payload: ProfileUpdatePayload) => Promise<void>
+  onError?: (message: string) => void
+}
 
-  const handleUpdateProfile = (id: string, tags: string[]) => {
-    setProfile((prev) => prev.map((g) => (g.id === id ? { ...g, tags } : g)))
-  }
+export function ProfileLifestyle({ profile, loading, saving, onUpdate, onError }: ProfileLifestyleProps) {
+  const medicalGroups: TagGroup[] = [
+    { id: "allergy", label: "过敏原", tags: profile?.allergies ?? [] },
+    { id: "chronic", label: "基础病/慢性病", tags: profile?.chronicDiseases ?? [] },
+    { id: "family", label: "家族病史", tags: profile?.familyHistory ?? [] },
+    { id: "surgery", label: "既往手术史", tags: profile?.pastSurgeries ?? [] },
+    { id: "tcm", label: "中医体质", tags: profile?.bodyConstitution ? [profile.bodyConstitution] : [] },
+  ]
 
-  const handleUpdateLifestyle = (id: string, tags: string[]) => {
-    setLifestyle((prev) => prev.map((g) => (g.id === id ? { ...g, tags } : g)))
+  const lifestyleGroups: TagGroup[] = [
+    { id: "smoking", label: "吸烟史", tags: profile?.smokingStatus ? [profile.smokingStatus] : [] },
+    { id: "drinking", label: "饮酒史", tags: profile?.drinkingStatus ? [profile.drinkingStatus] : [] },
+    {
+      id: "sleep",
+      label: "平均睡眠时长",
+      tags: profile?.averageSleepHours !== undefined && profile?.averageSleepHours !== null
+        ? [`${profile.averageSleepHours} 小时/天`]
+        : [],
+    },
+  ]
+
+  const handleUpdate = async (id: string, tags: string[]) => {
+    const payload: ProfileUpdatePayload = {}
+    switch (id) {
+      case "allergy":
+        payload.allergies = tags
+        break
+      case "chronic":
+        payload.chronicDiseases = tags
+        break
+      case "family":
+        payload.familyHistory = tags
+        break
+      case "surgery":
+        payload.pastSurgeries = tags
+        break
+      case "tcm":
+        payload.bodyConstitution = tags[0] ?? null
+        break
+      case "smoking":
+        payload.smokingStatus = tags[0] ?? null
+        break
+      case "drinking":
+        payload.drinkingStatus = tags[0] ?? null
+        break
+      case "sleep": {
+        const raw = tags[0]
+        if (!raw) {
+          payload.averageSleepHours = undefined
+          break
+        }
+        const num = parseFloat(raw)
+        if (!Number.isFinite(num)) {
+          onError?.("请输入有效的睡眠时长数值")
+          return
+        }
+        payload.averageSleepHours = num
+        break
+      }
+      default:
+        return
+    }
+
+    await onUpdate(payload)
   }
 
   return (
@@ -166,11 +233,13 @@ export function ProfileLifestyle() {
           <p className="mt-0.5 text-xs text-muted-foreground">既往病史与中医体质</p>
         </div>
         <div className="divide-y divide-border/30 px-2 py-1">
-          {profile.map((group) => (
+          {medicalGroups.map((group) => (
             <EditableTagGroup
               key={group.id}
               group={group}
-              onUpdate={handleUpdateProfile}
+              onUpdate={handleUpdate}
+              disabled={loading || saving}
+              saving={saving}
             />
           ))}
         </div>
@@ -183,11 +252,13 @@ export function ProfileLifestyle() {
           <p className="mt-0.5 text-xs text-muted-foreground">日常生活方式记录</p>
         </div>
         <div className="divide-y divide-border/30 px-2 py-1">
-          {lifestyle.map((group) => (
+          {lifestyleGroups.map((group) => (
             <EditableTagGroup
               key={group.id}
               group={group}
-              onUpdate={handleUpdateLifestyle}
+              onUpdate={handleUpdate}
+              disabled={loading || saving}
+              saving={saving}
             />
           ))}
         </div>

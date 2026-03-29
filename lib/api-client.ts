@@ -1,4 +1,5 @@
-﻿export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? ""
+﻿﻿// Prefer env, fallback to local backend dev port to avoid hitting Next.js dev server with relative paths
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8081"
 const NORMALIZED_BASE_URL = API_BASE_URL.endsWith("/")
   ? API_BASE_URL.slice(0, -1)
   : API_BASE_URL
@@ -46,4 +47,3 @@ export async function apiFetch(
 
   return response
 }
-
