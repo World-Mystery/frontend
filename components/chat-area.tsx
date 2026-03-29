@@ -1,13 +1,13 @@
-﻿﻿"use client"
+﻿"use client"
 
 import { Send, Paperclip, Sparkles, Heart, Activity, Utensils, Dumbbell } from "lucide-react"
 import { useState, useRef, useEffect, useMemo } from "react"
-import ReactMarkdown from "react-markdown"
-import remarkGfm from "remark-gfm"
 import { cn } from "@/lib/utils"
 import { ensureActiveMemberId } from "@/lib/member"
 import { streamAiChat } from "@/lib/ai-chat"
 import { addChatHistory, listChatHistory } from "@/lib/chat-history"
+import { addChatSession } from "@/lib/chat-session"
+import { ChatMarkdown } from "@/components/chat-markdown"
 
 interface Message {
   id: string
@@ -40,15 +40,17 @@ const welcomeSuggestions = [
 
 type ChatAreaProps = {
   sessionId: number | null
+  onSessionCreated?: (sessionId: number) => void
 }
 
-export function ChatArea({ sessionId }: ChatAreaProps) {
+export function ChatArea({ sessionId, onSessionCreated }: ChatAreaProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const skipHistoryLoadSessionRef = useRef<number | null>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -73,13 +75,28 @@ export function ChatArea({ sessionId }: ChatAreaProps) {
         setIsTyping(false)
         return
       }
+      if (skipHistoryLoadSessionRef.current === sessionId) {
+        skipHistoryLoadSessionRef.current = null
+        return
+      }
       try {
         const items = await listChatHistory(sessionId)
         if (cancelled) return
+        let previousRole: Message["role"] | null = null
         setMessages(
           items.map((item) => ({
             id: String(item.id),
-            role: item.role,
+            role: (() => {
+              const storedRole: Message["role"] = item.role === "assistant" ? "assistant" : "user"
+              const normalizedRole =
+                storedRole === "assistant"
+                  ? "assistant"
+                  : previousRole === "user"
+                    ? "assistant"
+                    : "user"
+              previousRole = normalizedRole
+              return normalizedRole
+            })(),
             content: item.message ?? "",
           }))
         )
@@ -99,7 +116,7 @@ export function ChatArea({ sessionId }: ChatAreaProps) {
 
   const handleSend = async (text?: string) => {
     const content = text || input.trim()
-    if (!content || !sessionId) return
+    if (!content || isTyping) return
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -114,8 +131,6 @@ export function ChatArea({ sessionId }: ChatAreaProps) {
       content: "",
     }
 
-    let assistantContent = ""
-
     setMessages((prev) => [...prev, userMsg, assistantMsg])
     setInput("")
     setIsTyping(true)
@@ -126,13 +141,23 @@ export function ChatArea({ sessionId }: ChatAreaProps) {
         throw new Error("Missing memberId")
       }
 
-      await addChatHistory(sessionId, content, "user")
+      let currentSessionId: number | undefined = sessionId ?? undefined
+      if (!currentSessionId) {
+        currentSessionId = await addChatSession()
+        if (!currentSessionId) {
+          throw new Error("Failed to create session")
+        }
+        skipHistoryLoadSessionRef.current = currentSessionId
+        onSessionCreated?.(currentSessionId)
+      }
+
+      await addChatHistory(currentSessionId, content, "user")
 
       await streamAiChat({
         message: content,
         memberId,
+        sessionId: currentSessionId,
         onDelta: (delta) => {
-          assistantContent += delta
           setMessages((prev) =>
               prev.map((msg) =>
                   msg.id === assistantId
@@ -142,10 +167,6 @@ export function ChatArea({ sessionId }: ChatAreaProps) {
           )
         },
       })
-
-      if (assistantContent) {
-        await addChatHistory(sessionId, assistantContent, "assistant")
-      }
     } catch (error) {
       setMessages((prev) =>
           prev.map((msg) =>
@@ -221,7 +242,7 @@ export function ChatArea({ sessionId }: ChatAreaProps) {
                             )}
                         >
                           {isAssistant ? (
-                              <div className="space-y-3 [&_p]:leading-[1.65]">
+                              <div>
                                 {showTypingDots ? (
                                     <div className="flex items-center gap-1 py-1">
                                       <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/30 [animation-delay:0ms]" />
@@ -229,64 +250,7 @@ export function ChatArea({ sessionId }: ChatAreaProps) {
                                       <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/30 [animation-delay:300ms]" />
                                     </div>
                                 ) : (
-                                    <ReactMarkdown
-                                        remarkPlugins={[remarkGfm]}
-                                        components={{
-                                          p: ({ children }) => <p className="leading-[1.65]">{children}</p>,
-                                          a: ({ children, href }) => (
-                                              <a
-                                                  href={href}
-                                                  target="_blank"
-                                                  rel="noreferrer"
-                                                  className="text-primary underline underline-offset-4"
-                                              >
-                                                {children}
-                                              </a>
-                                          ),
-                                          ul: ({ children }) => <ul className="list-disc pl-5">{children}</ul>,
-                                          ol: ({ children }) => <ol className="list-decimal pl-5">{children}</ol>,
-                                          li: ({ children }) => <li className="my-1">{children}</li>,
-                                          blockquote: ({ children }) => (
-                                              <blockquote className="border-l-2 border-primary/30 pl-3 text-foreground/80">
-                                                {children}
-                                              </blockquote>
-                                          ),
-                                          code: ({ className, children }) => {
-                                            const isInline = !className
-                                            if (isInline) {
-                                              return (
-                                                  <code className="rounded bg-muted px-1.5 py-0.5 text-[0.92em]">
-                                                    {children}
-                                                  </code>
-                                              )
-                                            }
-                                            return <code className={className}>{children}</code>
-                                          },
-                                          pre: ({ children }) => (
-                                              <pre className="overflow-x-auto rounded-lg bg-muted px-4 py-3 text-[0.9em]">
-                                  {children}
-                                </pre>
-                                          ),
-                                          h1: ({ children }) => <h1 className="text-lg font-semibold">{children}</h1>,
-                                          h2: ({ children }) => <h2 className="text-base font-semibold">{children}</h2>,
-                                          h3: ({ children }) => <h3 className="text-[15px] font-semibold">{children}</h3>,
-                                          table: ({ children }) => (
-                                              <div className="overflow-x-auto">
-                                                <table className="w-full border-collapse text-sm">{children}</table>
-                                              </div>
-                                          ),
-                                          th: ({ children }) => (
-                                              <th className="border border-border/60 bg-muted px-2 py-1 text-left">
-                                                {children}
-                                              </th>
-                                          ),
-                                          td: ({ children }) => (
-                                              <td className="border border-border/60 px-2 py-1">{children}</td>
-                                          ),
-                                        }}
-                                    >
-                                      {msg.content}
-                                    </ReactMarkdown>
+                                    <ChatMarkdown content={msg.content} />
                                 )}
                               </div>
                           ) : (
@@ -360,7 +324,7 @@ export function ChatArea({ sessionId }: ChatAreaProps) {
 
                 <button
                     onClick={() => handleSend()}
-                    disabled={!input.trim() || isTyping || !sessionId}
+                    disabled={!input.trim() || isTyping}
                     className="mb-2 flex h-8 w-8 shrink-0 items-center justify-center btn-bubble disabled:opacity-50"
                     aria-label="发送"
                 >
@@ -373,10 +337,6 @@ export function ChatArea({ sessionId }: ChatAreaProps) {
       </div>
   )
 }
-
-
-
-
 
 
 

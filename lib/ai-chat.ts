@@ -3,12 +3,14 @@
 export type StreamChatParams = {
   message: string
   memberId: number
+  sessionId: number
   onDelta: (delta: string) => void
 }
 
 export async function streamAiChat({
                                      message,
                                      memberId,
+                                     sessionId,
                                      onDelta,
                                    }: StreamChatParams): Promise<void> {
   const res = await apiFetch("/ai/chat", {
@@ -16,7 +18,7 @@ export async function streamAiChat({
     headers: {
       Accept: "text/event-stream",
     },
-    body: JSON.stringify({ message, memberId }),
+    body: JSON.stringify({ message, memberId, sessionId }),
   })
 
   if (!res.ok || !res.body) {
@@ -26,6 +28,32 @@ export async function streamAiChat({
   const reader = res.body.getReader()
   const decoder = new TextDecoder("utf-8")
   let buffer = ""
+  const emitChunk = (chunk: string) => {
+    const lines = chunk.split(/\r?\n/)
+    const dataLines: string[] = []
+
+    for (const line of lines) {
+      if (line.startsWith("data:")) {
+        let data = line.slice(5)
+        if (data.startsWith(" ")) {
+          data = data.slice(1)
+        }
+        dataLines.push(data)
+      }
+    }
+
+    if (dataLines.length > 0) {
+      const data = dataLines.join("\n")
+      if (data && data !== "[DONE]") {
+        onDelta(data)
+      }
+      return
+    }
+
+    if (chunk.trim() !== "") {
+      onDelta(chunk)
+    }
+  }
 
   while (true) {
     const { value, done } = await reader.read()
@@ -36,19 +64,14 @@ export async function streamAiChat({
     while (sepIndex !== -1) {
       const chunk = buffer.slice(0, sepIndex)
       buffer = buffer.slice(sepIndex + 2)
-
-      const lines = chunk.split("\n")
-      for (const line of lines) {
-        if (line.startsWith("data:")) {
-          const data = line.slice(5).trim()
-          if (!data || data === "[DONE]") continue
-          onDelta(data)
-        } else if (line.trim() !== "") {
-          onDelta(line)
-        }
-      }
+      emitChunk(chunk)
 
       sepIndex = buffer.indexOf("\n\n")
     }
+  }
+
+  const tail = buffer + decoder.decode()
+  if (tail.trim() !== "") {
+    emitChunk(tail)
   }
 }

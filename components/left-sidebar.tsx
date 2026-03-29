@@ -5,22 +5,27 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { clearAllAuth } from "@/lib/auth"
-import { addChatSession, ChatSession, deleteChatSession, listChatSessions } from "@/lib/chat-session"
+import { ChatSession, deleteChatSession, listChatSessions } from "@/lib/chat-session"
 import { ensureActiveMemberId } from "@/lib/member"
 
 interface LeftSidebarProps {
   onNewChat: (sessionId?: number) => void
   onSelectSession: (sessionId: number) => void
   activeSessionId?: number | null
+  refreshToken?: number
 }
 
-export function LeftSidebar({ onNewChat, onSelectSession, activeSessionId }: LeftSidebarProps) {
+export function LeftSidebar({
+  onNewChat,
+  onSelectSession,
+  activeSessionId,
+  refreshToken = 0,
+}: LeftSidebarProps) {
   const [expanded, setExpanded] = useState(false)
   const [sessions, setSessions] = useState<ChatSession[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
-  const [adding, setAdding] = useState(false)
   const router = useRouter()
 
   const parseCreateTime = (value: unknown): Date | null => {
@@ -77,32 +82,17 @@ export function LeftSidebar({ onNewChat, onSelectSession, activeSessionId }: Lef
 
   useEffect(() => {
     void refreshSessions()
-  }, [])
+  }, [refreshToken])
 
   const handleLogout = () => {
     clearAllAuth()
     router.replace("/auth")
   }
 
-  const handleAddSession = async () => {
-    if (adding) return
-    setAdding(true)
+  const handleAddSession = () => {
     setError(null)
-    try {
-      await ensureActiveMemberId()
-      const newId = await addChatSession()
-      const list = await refreshSessions()
-      const targetId = newId ?? list?.[0]?.id
-      if (targetId) {
-        onSelectSession(targetId)
-      }
-      onNewChat(targetId)
-      setExpanded(false)
-    } catch (e) {
-      setError("新建会话失败，请稍后重试。")
-    } finally {
-      setAdding(false)
-    }
+    onNewChat()
+    setExpanded(false)
   }
 
   const handleDeleteSession = async (sessionId: number) => {
@@ -139,9 +129,8 @@ export function LeftSidebar({ onNewChat, onSelectSession, activeSessionId }: Lef
 
         <button
           onClick={handleAddSession}
-          className="mt-2 flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-accent disabled:opacity-60"
+          className="mt-2 flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-accent"
           aria-label="新建会话"
-          disabled={adding}
         >
           <SquarePen className="h-5 w-5 text-muted-foreground" />
         </button>
@@ -181,8 +170,7 @@ export function LeftSidebar({ onNewChat, onSelectSession, activeSessionId }: Lef
         <div className="px-3 pb-2 pt-3">
           <button
             onClick={handleAddSession}
-            disabled={adding}
-            className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-60"
+            className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
             <SquarePen className="h-4 w-4 text-primary" />
             新建会话
@@ -193,7 +181,7 @@ export function LeftSidebar({ onNewChat, onSelectSession, activeSessionId }: Lef
           {loading ? (
             <div className="px-2 py-3 text-xs text-muted-foreground">加载中...</div>
           ) : sortedSessions.length === 0 ? (
-            <div className="px-2 py-3 text-xs text-muted-foreground">暂无会话，点击新建开始对话。</div>
+            <div className="px-2 py-3 text-xs text-muted-foreground">暂无会话，开始对话后会显示在这里。</div>
           ) : (
             <div className="flex flex-col gap-1">
               {sortedSessions.map((chat) => (
