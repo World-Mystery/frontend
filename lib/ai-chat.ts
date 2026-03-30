@@ -2,14 +2,12 @@
 
 export type StreamChatParams = {
   message: string
-  memberId: number
   sessionId: number
   onDelta: (delta: string) => void
 }
 
 export async function streamAiChat({
                                      message,
-                                     memberId,
                                      sessionId,
                                      onDelta,
                                    }: StreamChatParams): Promise<void> {
@@ -18,7 +16,7 @@ export async function streamAiChat({
     headers: {
       Accept: "text/event-stream",
     },
-    body: JSON.stringify({ message, memberId, sessionId }),
+    body: JSON.stringify({ message, sessionId }),
   })
 
   if (!res.ok || !res.body) {

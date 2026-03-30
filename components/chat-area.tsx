@@ -114,8 +114,8 @@ export function ChatArea({ sessionId, onSessionCreated }: ChatAreaProps) {
     }
   }, [sessionId])
 
-  const handleSend = async (text?: string) => {
-    const content = text || input.trim()
+  const submitQuestion = async (question: string) => {
+    const content = question.trim()
     if (!content || isTyping) return
 
     const userMsg: Message = {
@@ -136,8 +136,8 @@ export function ChatArea({ sessionId, onSessionCreated }: ChatAreaProps) {
     setIsTyping(true)
 
     try {
-      const memberId = await ensureActiveMemberId()
-      if (!memberId) {
+      const activeMemberId = await ensureActiveMemberId()
+      if (!activeMemberId) {
         throw new Error("Missing memberId")
       }
 
@@ -155,7 +155,6 @@ export function ChatArea({ sessionId, onSessionCreated }: ChatAreaProps) {
 
       await streamAiChat({
         message: content,
-        memberId,
         sessionId: currentSessionId,
         onDelta: (delta) => {
           setMessages((prev) =>
@@ -178,6 +177,11 @@ export function ChatArea({ sessionId, onSessionCreated }: ChatAreaProps) {
     } finally {
       setIsTyping(false)
     }
+  }
+
+  const handleSend = async (text?: string) => {
+    const content = text ?? input
+    await submitQuestion(content)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -337,7 +341,6 @@ export function ChatArea({ sessionId, onSessionCreated }: ChatAreaProps) {
       </div>
   )
 }
-
 
 
 
