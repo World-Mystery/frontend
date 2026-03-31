@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type CSSProperties } from "react"
 import {
   Activity,
   Beaker,
@@ -12,6 +12,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react"
+import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import type { Profile, ProfileUpdatePayload } from "@/lib/profile-stable"
 
@@ -82,6 +83,11 @@ const STATUS_STYLES: Record<
   },
 }
 
+const EDIT_INPUT_STYLE: CSSProperties = {
+  color: "var(--foreground)",
+  WebkitTextFillColor: "var(--foreground)",
+}
+
 function getRangeStatus(
   value: number | null | undefined,
   normalMin: number,
@@ -134,8 +140,10 @@ function EditableVitalCard({
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    setEditValue(vital.value === "--" ? "" : vital.value)
-  }, [vital.value])
+    if (!isEditing) {
+      setEditValue(vital.value === "--" ? "" : vital.value)
+    }
+  }, [isEditing, vital.value])
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -164,9 +172,11 @@ function EditableVitalCard({
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
+      event.preventDefault()
       handleSave()
     }
     if (event.key === "Escape") {
+      event.preventDefault()
       handleCancel()
     }
   }
@@ -178,6 +188,7 @@ function EditableVitalCard({
     <div className="group relative flex flex-col rounded-xl border border-border/60 bg-card p-4 transition-all hover:border-border hover:shadow-sm">
       {!isEditing && vital.editable && !disabled && (
         <button
+          type="button"
           onClick={() => setIsEditing(true)}
           className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-lg opacity-0 transition-all hover:bg-accent group-hover:opacity-100"
           aria-label={`${TEXT.edit}${vital.label}`}
@@ -195,15 +206,21 @@ function EditableVitalCard({
 
       {isEditing ? (
         <div className="flex items-center gap-1.5">
-          <input
+          <Input
+            type="text"
             ref={inputRef}
             value={editValue}
             onChange={(event) => setEditValue(event.target.value)}
             onKeyDown={handleKeyDown}
             disabled={saving}
-            className="h-8 min-w-0 flex-1 rounded-md border border-primary/30 bg-background px-2 text-lg font-semibold text-foreground outline-none ring-1 ring-primary/20 selection:bg-primary selection:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            autoComplete="off"
+            spellCheck={false}
+            style={EDIT_INPUT_STYLE}
+            className="h-8 min-w-[3rem] flex-1 border-primary/30 bg-background px-2 text-lg font-semibold text-foreground caret-foreground shadow-none focus-visible:border-primary/40 focus-visible:ring-primary/20"
+            aria-label={vital.label}
           />
           <button
+            type="button"
             onClick={handleSave}
             disabled={saving}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
@@ -212,6 +229,7 @@ function EditableVitalCard({
             <Check className="h-3.5 w-3.5" />
           </button>
           <button
+            type="button"
             onClick={handleCancel}
             disabled={saving}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
