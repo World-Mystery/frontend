@@ -1,11 +1,13 @@
 ﻿"use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Brain, Sparkles } from "lucide-react"
+import { Brain, Sparkles, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { ensureActiveMemberId } from "@/lib/member"
 import {
+  deleteAiMemory,
   getAiMemories,
   type AiMemory,
   type AiMemoryCategory,
@@ -47,6 +49,24 @@ const categoryConfig: Record<
   },
 }
 
+const categories: Array<"all" | AiMemoryCategory> = [
+  "all",
+  "symptom",
+  "medication",
+  "habit",
+  "preference",
+  "other",
+]
+
+const categoryLabels: Record<"all" | AiMemoryCategory, string> = {
+  all: "\u5168\u90e8",
+  symptom: "\u75c7\u72b6",
+  medication: "\u7528\u836f",
+  habit: "\u4e60\u60ef",
+  preference: "\u504f\u597d",
+  other: "\u5176\u4ed6",
+}
+
 function formatDate(timestamp: number | null): string {
   if (!timestamp) return "\u6682\u65e0\u65f6\u95f4"
 
@@ -60,13 +80,21 @@ function formatDate(timestamp: number | null): string {
   })
 }
 
-function MemoryItem({ memory }: { memory: AiMemory }) {
+function MemoryItem({
+  memory,
+  deleting,
+  onDelete,
+}: {
+  memory: AiMemory
+  deleting: boolean
+  onDelete: (memory: AiMemory) => void
+}) {
   const config = categoryConfig[memory.category]
 
   return (
     <div
       className={cn(
-        "flex items-start gap-3 rounded-lg border px-3.5 py-3 transition-all hover:shadow-sm",
+        "group flex items-start gap-3 rounded-lg border px-3.5 py-3 transition-all hover:shadow-sm",
         config.border,
         config.bg
       )}
@@ -85,6 +113,19 @@ function MemoryItem({ memory }: { memory: AiMemory }) {
           {memory.source || "\u5411\u91cf\u5e93"} &middot; {formatDate(memory.timestamp)}
         </p>
       </div>
+
+      <button
+        type="button"
+        onClick={() => onDelete(memory)}
+        disabled={deleting}
+        aria-label={`删除记忆：${memory.content}`}
+        className={cn(
+          "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/20",
+          deleting && "cursor-not-allowed opacity-100"
+        )}
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
     </div>
   )
 }
@@ -92,8 +133,10 @@ function MemoryItem({ memory }: { memory: AiMemory }) {
 export function AiMemoryBase() {
   const [memories, setMemories] = useState<AiMemory[]>([])
   const [loading, setLoading] = useState(true)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [filterCategory, setFilterCategory] = useState<"all" | AiMemoryCategory>("all")
+  const { toast } = useToast()
 
   useEffect(() => {
     let cancelled = false
@@ -129,21 +172,23 @@ export function AiMemoryBase() {
     }
   }, [])
 
-  const categories: Array<"all" | AiMemoryCategory> = [
-    "all",
-    "symptom",
-    "medication",
-    "habit",
-    "preference",
-    "other",
-  ]
-  const categoryLabels: Record<"all" | AiMemoryCategory, string> = {
-    all: "\u5168\u90e8",
-    symptom: "\u75c7\u72b6",
-    medication: "\u7528\u836f",
-    habit: "\u4e60\u60ef",
-    preference: "\u504f\u597d",
-    other: "\u5176\u4ed6",
+  const handleDelete = async (memory: AiMemory) => {
+    if (deletingId) return
+
+    setDeletingId(memory.id)
+    try {
+      await deleteAiMemory(memory.id)
+      setMemories((current) => current.filter((item) => item.id !== memory.id))
+    } catch (err) {
+      console.error(err)
+      toast({
+        title: "删除失败",
+        description: err instanceof Error ? err.message : "删除 AI 记忆失败",
+        variant: "destructive",
+      })
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   const filteredMemories = useMemo(() => {
@@ -208,7 +253,12 @@ export function AiMemoryBase() {
 
         {!error && !loading && filteredMemories.length > 0
           ? filteredMemories.map((memory) => (
-              <MemoryItem key={memory.id} memory={memory} />
+              <MemoryItem
+                key={memory.id}
+                memory={memory}
+                deleting={deletingId === memory.id}
+                onDelete={handleDelete}
+              />
             ))
           : null}
 

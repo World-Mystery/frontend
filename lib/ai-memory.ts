@@ -12,7 +12,6 @@ export type AiMemory = {
   content: string
   source: string
   category: AiMemoryCategory
-  rawCategory: string
   timestamp: number | null
 }
 
@@ -84,6 +83,10 @@ function normalizeCategory(value: string | null | undefined): AiMemoryCategory {
   return "other"
 }
 
+function getResponseMessage(body: ApiResponse<unknown>, fallback: string): string {
+  return body?.msg?.trim() || fallback
+}
+
 export async function getAiMemories(): Promise<AiMemory[]> {
   const res = await apiFetch("/ai/memory/list", { method: "GET" })
   if (!res.ok) {
@@ -91,6 +94,9 @@ export async function getAiMemories(): Promise<AiMemory[]> {
   }
 
   const body = (await res.json()) as ApiResponse<AiMemoryApiItem[]>
+  if (body?.code === 0) {
+    throw new Error(getResponseMessage(body, "加载 AI 记忆失败"))
+  }
   const items = Array.isArray(body?.data) ? body.data : []
 
   return items.map((item, index) => {
@@ -100,9 +106,22 @@ export async function getAiMemories(): Promise<AiMemory[]> {
       content: (item.content ?? item.message ?? "").trim(),
       source: (item.source ?? "").trim(),
       category: normalizeCategory(rawCategory),
-      rawCategory,
       timestamp: normalizeTimestamp(item.createTime ?? item.time),
     }
   })
+}
+
+export async function deleteAiMemory(memoryId: string): Promise<void> {
+  const res = await apiFetch(`/ai/memory/delete/${encodeURIComponent(memoryId)}`, {
+    method: "DELETE",
+  })
+  if (!res.ok) {
+    throw new Error(`Failed to delete AI memory: ${res.status}`)
+  }
+
+  const body = (await res.json()) as ApiResponse<null>
+  if (body?.code === 0) {
+    throw new Error(getResponseMessage(body, "删除 AI 记忆失败"))
+  }
 }
 
