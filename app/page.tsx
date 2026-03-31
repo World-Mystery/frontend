@@ -3,7 +3,7 @@
 import { TopNav } from "@/components/top-nav"
 import { LeftSidebar } from "@/components/left-sidebar"
 import { ChatArea } from "@/components/chat-area"
-import { DashboardView } from "@/components/dashboard/dashboard-view"
+import { DashboardView } from "@/components/dashboard/dashboard-view-stable"
 import { HealthEventsView } from "@/components/health-events/health-events-view"
 import { HealthPlanView } from "@/components/health-plan/health-plan-view"
 import { ProtectedRoute } from "@/components/auth/route-protector"

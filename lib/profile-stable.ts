@@ -49,13 +49,15 @@ type ApiResponse<T> = {
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    throw new Error(`请求失败：${res.status}`)
+    throw new Error(`\u8bf7\u6c42\u5931\u8d25\uff1a${res.status}`)
   }
+
   const body = (await res.json()) as ApiResponse<T>
   if (body && "data" in body) {
     return body.data as T
   }
-  throw new Error("响应格式不正确")
+
+  throw new Error("\u54cd\u5e94\u683c\u5f0f\u4e0d\u6b63\u786e")
 }
 
 export async function getProfile(): Promise<Profile> {

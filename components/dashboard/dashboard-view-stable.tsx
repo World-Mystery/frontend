@@ -1,19 +1,34 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Upload, ChevronRight } from "lucide-react"
+import { ChevronRight, Upload } from "lucide-react"
 import { VitalsCards } from "./vitals-cards-stable"
 import { ProfileLifestyle } from "./profile-lifestyle-stable"
 import { TrendCharts } from "./trend-charts"
 import { AiMemoryBase } from "./ai-memory"
 import { ImportReportDialog } from "./import-report-dialog"
 import { ensureActiveMemberId } from "@/lib/member"
-import { getProfile, updateProfile, type ProfileUpdatePayload, type Profile } from "@/lib/profile"
+import {
+  getProfile,
+  updateProfile,
+  type Profile,
+  type ProfileUpdatePayload,
+} from "@/lib/profile-stable"
 import { useToast } from "@/hooks/use-toast"
 
-interface DashboardViewProps {
+type DashboardViewProps = {
   currentMemberName: string
 }
+
+const TEXT = {
+  loadFailed: "\u52a0\u8f7d\u6863\u6848\u5931\u8d25",
+  saved: "\u5df2\u4fdd\u5b58",
+  savedDescription: "\u5065\u5eb7\u6863\u6848\u5df2\u66f4\u65b0",
+  saveFailed: "\u4fdd\u5b58\u5931\u8d25",
+  dashboard: "\u5065\u5eb7\u4eea\u8868\u76d8",
+  importReport: "\u5bfc\u5165\u4f53\u68c0\u62a5\u544a",
+  invalidData: "\u6570\u636e\u683c\u5f0f\u4e0d\u6b63\u786e",
+} as const
 
 export function DashboardView({ currentMemberName }: DashboardViewProps) {
   const [showImport, setShowImport] = useState(false)
@@ -27,9 +42,13 @@ export function DashboardView({ currentMemberName }: DashboardViewProps) {
       await ensureActiveMemberId()
       const data = await getProfile()
       setProfile(data)
-    } catch (err) {
-      console.error(err)
-      toast({ title: "加载档案失败", description: err instanceof Error ? err.message : String(err), variant: "destructive" })
+    } catch (error) {
+      console.error(error)
+      toast({
+        title: TEXT.loadFailed,
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -44,58 +63,64 @@ export function DashboardView({ currentMemberName }: DashboardViewProps) {
     try {
       const data = await updateProfile(payload)
       setProfile(data)
-      toast({ title: "已保存", description: "健康档案已更新" })
-    } catch (err) {
-      console.error(err)
-      toast({ title: "保存失败", description: err instanceof Error ? err.message : String(err), variant: "destructive" })
+      toast({ title: TEXT.saved, description: TEXT.savedDescription })
+    } catch (error) {
+      console.error(error)
+      toast({
+        title: TEXT.saveFailed,
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      })
+      throw error
     } finally {
       setSaving(false)
     }
   }
 
+  const showInvalidData = (message: string) => {
+    toast({
+      title: TEXT.invalidData,
+      description: message,
+      variant: "destructive",
+    })
+  }
+
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-6xl px-6 py-6">
-        {/* Page Header */}
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>{currentMemberName}</span>
             <ChevronRight className="h-3 w-3" />
-            <span className="text-foreground font-medium">{"健康仪表盘"}</span>
+            <span className="font-medium text-foreground">{TEXT.dashboard}</span>
           </div>
           <button
             onClick={() => setShowImport(true)}
             className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-sm transition-all hover:border-primary/30 hover:bg-primary/[0.03] hover:shadow-md"
           >
             <Upload className="h-4 w-4 text-primary" />
-            导入体检报告
+            {TEXT.importReport}
           </button>
         </div>
 
-        {/* Dashboard Sections */}
         <div className="flex flex-col gap-6">
-          {/* Vitals */}
           <VitalsCards
             profile={profile}
             loading={loading}
             saving={saving}
             onSave={handleUpdateProfile}
-            onError={(msg) => toast({ title: "数据格式不正确", description: msg, variant: "destructive" })}
+            onError={showInvalidData}
           />
 
-          {/* Profile & Lifestyle */}
           <ProfileLifestyle
             profile={profile}
             loading={loading}
             saving={saving}
             onUpdate={handleUpdateProfile}
-            onError={(msg) => toast({ title: "数据格式不正确", description: msg, variant: "destructive" })}
+            onError={showInvalidData}
           />
 
-          {/* Trend Charts */}
           <TrendCharts />
-
-          {/* AI Memory Base */}
           <AiMemoryBase />
         </div>
       </div>
