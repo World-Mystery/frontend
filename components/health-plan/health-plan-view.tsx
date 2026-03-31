@@ -268,7 +268,11 @@ function convertToScheduleBlock(vo: any): ScheduleBlock {
   }
 }
 
-export function HealthPlanView() {
+interface HealthPlanViewProps {
+  currentMemberName: string
+}
+
+export function HealthPlanView({ currentMemberName }: HealthPlanViewProps) {
   const [schedule, setSchedule] = useState<ScheduleBlock[]>([])
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [addDialogTime, setAddDialogTime] = useState("12:00")
@@ -498,7 +502,7 @@ export function HealthPlanView() {
         {/* Page Header */}
         <div className="mb-6 flex items-center">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>{"妈妈"}</span>
+            <span>{currentMemberName}</span>
             <ChevronRight className="h-3 w-3" />
             <span className="text-foreground font-medium">{"健康计划"}</span>
           </div>

@@ -42,9 +42,10 @@ const navItems = [
 interface TopNavProps {
   activeNav: string
   onNavChange: (id: string) => void
+  onActiveMemberChange?: (member: Member | null) => void
 }
 
-export function TopNav({ activeNav, onNavChange }: TopNavProps) {
+export function TopNav({ activeNav, onNavChange, onActiveMemberChange }: TopNavProps) {
   const [showMemberMenu, setShowMemberMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
@@ -104,6 +105,10 @@ export function TopNav({ activeNav, onNavChange }: TopNavProps) {
   const activeMember = members.find((member) => member.id === activeMemberId) || null
   const activeMemberLabel = activeMember?.nickname?.trim() || "未选择成员"
   const editingIsDefault = editingMember ? isDefaultMember(editingMember) : false
+
+  useEffect(() => {
+    onActiveMemberChange?.(activeMember)
+  }, [activeMember, onActiveMemberChange])
 
   const openEditor = (member: Member | null) => {
     setEditingMember(member)
@@ -517,7 +522,6 @@ export function TopNav({ activeNav, onNavChange }: TopNavProps) {
     </header>
   )
 }
-
 
 
 

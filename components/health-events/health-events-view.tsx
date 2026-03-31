@@ -23,7 +23,11 @@ import type { HealthEvent } from "./types"
 
 type ViewMode = "management" | "timeline"
 
-export function HealthEventsView() {
+interface HealthEventsViewProps {
+  currentMemberName: string
+}
+
+export function HealthEventsView({ currentMemberName }: HealthEventsViewProps) {
   const [events, setEvents] = useState<HealthEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -184,7 +188,7 @@ export function HealthEventsView() {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>{"妈妈"}</span>
+              <span>{currentMemberName}</span>
               <ChevronRight className="h-3 w-3" />
               <span className="text-foreground font-medium">{"健康事件"}</span>
             </div>

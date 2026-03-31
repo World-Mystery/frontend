@@ -11,7 +11,11 @@ import { ensureActiveMemberId } from "@/lib/member"
 import { getProfile, updateProfile, type ProfileUpdatePayload, type Profile } from "@/lib/profile"
 import { useToast } from "@/hooks/use-toast"
 
-export function DashboardView() {
+interface DashboardViewProps {
+  currentMemberName: string
+}
+
+export function DashboardView({ currentMemberName }: DashboardViewProps) {
   const [showImport, setShowImport] = useState(false)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -55,7 +59,7 @@ export function DashboardView() {
         {/* Page Header */}
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>{"妈妈"}</span>
+            <span>{currentMemberName}</span>
             <ChevronRight className="h-3 w-3" />
             <span className="text-foreground font-medium">{"健康仪表盘"}</span>
           </div>
