@@ -24,10 +24,12 @@ export async function apiFetch(
 ): Promise<Response> {
   const headers = new Headers(options.headers || {})
   const token = getAuthToken()
+  const isFormData =
+    typeof FormData !== "undefined" && options.body instanceof FormData
   if (token) headers.set("token", token)
   const memberIdHeader = headers.get("memberId") ?? getStoredMemberId()
   if (memberIdHeader) headers.set("memberId", memberIdHeader)
-  if (options.body && !headers.has("Content-Type")) {
+  if (options.body && !isFormData && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json")
   }
 

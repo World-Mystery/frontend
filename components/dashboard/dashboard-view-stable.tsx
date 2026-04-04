@@ -85,6 +85,16 @@ export function DashboardView({ currentMemberName }: DashboardViewProps) {
     })
   }
 
+  const handleImportSuccess = () => {
+    window.setTimeout(() => {
+      void loadProfile()
+    }, 2500)
+
+    window.setTimeout(() => {
+      void loadProfile()
+    }, 6000)
+  }
+
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-6xl px-6 py-6">
@@ -125,7 +135,11 @@ export function DashboardView({ currentMemberName }: DashboardViewProps) {
         </div>
       </div>
 
-      <ImportReportDialog open={showImport} onOpenChange={setShowImport} />
+      <ImportReportDialog
+        open={showImport}
+        onOpenChange={setShowImport}
+        onImportSuccess={handleImportSuccess}
+      />
     </div>
   )
 }

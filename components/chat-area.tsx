@@ -18,18 +18,18 @@ interface Message {
 const welcomeSuggestions = [
   {
     icon: Heart,
-    title: "分析体检报告",
-    desc: "帮我分析妈妈的体检报告",
+    title: "分析健康数据",
+    desc: "帮我分析一下我的健康数据",
   },
   {
     icon: Activity,
     title: "血压管理建议",
-    desc: "爸爸的血压偏高，有什么建议吗？",
+    desc: "我的血压偏高，有什么建议吗？",
   },
   {
     icon: Dumbbell,
     title: "运动计划",
-    desc: "制定适合老年人的运动计划",
+    desc: "制定适合我的运动计划",
   },
   {
     icon: Utensils,

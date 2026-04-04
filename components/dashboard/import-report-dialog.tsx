@@ -1,6 +1,6 @@
-"use client"
+﻿"use client"
 
-import { useState, useRef } from "react"
+import { useRef, useState } from "react"
 import { Upload, FileText, X, CheckCircle2 } from "lucide-react"
 import {
   Dialog,
@@ -9,19 +9,68 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
+import { importHealthReport } from "@/lib/report-import"
 import { cn } from "@/lib/utils"
 
 interface ImportReportDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onImportSuccess?: () => void
 }
 
-export function ImportReportDialog({ open, onOpenChange }: ImportReportDialogProps) {
+const MAX_FILE_SIZE = 20 * 1024 * 1024
+const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"]
+
+export function ImportReportDialog({
+  open,
+  onOpenChange,
+  onImportSuccess,
+}: ImportReportDialogProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploaded, setUploaded] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const resetState = () => {
+    setFile(null)
+    setUploaded(false)
+    setUploading(false)
+    setIsDragging(false)
+    setError(null)
+    if (inputRef.current) {
+      inputRef.current.value = ""
+    }
+  }
+
+  const validateFile = (nextFile: File) => {
+    if (!ACCEPTED_TYPES.includes(nextFile.type)) {
+      return "目前仅支持 JPG、PNG、WEBP 图片格式"
+    }
+
+    if (nextFile.size > MAX_FILE_SIZE) {
+      return "图片大小不能超过 20MB"
+    }
+
+    return null
+  }
+
+  const updateSelectedFile = (nextFile: File | null | undefined) => {
+    if (!nextFile) {
+      return
+    }
+
+    const validationMessage = validateFile(nextFile)
+    if (validationMessage) {
+      setError(validationMessage)
+      setFile(null)
+      return
+    }
+
+    setError(null)
+    setFile(nextFile)
+  }
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -35,48 +84,48 @@ export function ImportReportDialog({ open, onOpenChange }: ImportReportDialogPro
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
-    const droppedFile = e.dataTransfer.files[0]
-    if (droppedFile) {
-      setFile(droppedFile)
-    }
+    updateSelectedFile(e.dataTransfer.files[0])
   }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0]
-    if (selectedFile) {
-      setFile(selectedFile)
+    updateSelectedFile(e.target.files?.[0])
+  }
+
+  const handleUpload = async () => {
+    if (!file) return
+
+    setUploading(true)
+    setError(null)
+
+    try {
+      await importHealthReport(file)
+      setUploading(false)
+      setUploaded(true)
+      onImportSuccess?.()
+      window.setTimeout(() => {
+        resetState()
+        onOpenChange(false)
+      }, 1500)
+    } catch (uploadError) {
+      setUploading(false)
+      setError(uploadError instanceof Error ? uploadError.message : "体检单导入失败")
     }
   }
 
-  const handleUpload = () => {
-    if (!file) return
-    setUploading(true)
-    // Simulate upload
-    setTimeout(() => {
-      setUploading(false)
-      setUploaded(true)
-      setTimeout(() => {
-        onOpenChange(false)
-        setFile(null)
-        setUploaded(false)
-      }, 1500)
-    }, 2000)
-  }
-
-  const handleClose = () => {
-    onOpenChange(false)
-    setFile(null)
-    setUploaded(false)
-    setUploading(false)
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      resetState()
+    }
+    onOpenChange(nextOpen)
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>导入体检报告</DialogTitle>
           <DialogDescription>
-            上传体检报告文件，AI 将自动解析并更新您的健康数据
+            上传体检单图片后，AI 会先转成文字，再为当前成员解析并更新健康数据
           </DialogDescription>
         </DialogHeader>
 
@@ -90,7 +139,6 @@ export function ImportReportDialog({ open, onOpenChange }: ImportReportDialogPro
           </div>
         ) : (
           <>
-            {/* Drop zone */}
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -107,38 +155,33 @@ export function ImportReportDialog({ open, onOpenChange }: ImportReportDialogPro
                 <Upload className="h-5 w-5 text-primary/70" />
               </div>
               <div className="text-center">
-                <p className="text-sm font-medium text-foreground">
-                  {"拖拽文件到此处，或点击选择"}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {"支持 PDF、图片格式（JPG/PNG），最大 20MB"}
-                </p>
+                <p className="text-sm font-medium text-foreground">拖拽文件到此处，或点击选择</p>
+                <p className="mt-1 text-xs text-muted-foreground">支持 JPG、PNG、WEBP 图片，最大 20MB</p>
               </div>
               <input
                 ref={inputRef}
                 type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
+                accept=".jpg,.jpeg,.png,.webp"
                 onChange={handleFileSelect}
                 className="hidden"
               />
             </div>
 
-            {/* Selected file */}
             {file && (
               <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-accent/30 px-4 py-3">
                 <FileText className="h-5 w-5 shrink-0 text-primary" />
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {file.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">{file.name}</p>
+                  <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                 </div>
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     setFile(null)
+                    setError(null)
+                    if (inputRef.current) {
+                      inputRef.current.value = ""
+                    }
                   }}
                   className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md hover:bg-accent"
                 >
@@ -147,7 +190,12 @@ export function ImportReportDialog({ open, onOpenChange }: ImportReportDialogPro
               </div>
             )}
 
-            {/* Upload button */}
+            {error && (
+              <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+
             <button
               onClick={handleUpload}
               disabled={!file || uploading}
@@ -155,18 +203,18 @@ export function ImportReportDialog({ open, onOpenChange }: ImportReportDialogPro
                 "flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium transition-all",
                 file && !uploading
                   ? "btn-bubble"
-                  : "bg-muted text-muted-foreground cursor-not-allowed"
+                  : "cursor-not-allowed bg-muted text-muted-foreground"
               )}
             >
               {uploading ? (
                 <>
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  {"正在上传..."}
+                  正在上传...
                 </>
               ) : (
                 <>
                   <Upload className="h-4 w-4" />
-                  {"开始导入"}
+                  开始导入
                 </>
               )}
             </button>
