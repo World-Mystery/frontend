@@ -125,7 +125,7 @@ export function ImportReportDialog({
         <DialogHeader>
           <DialogTitle>导入体检报告</DialogTitle>
           <DialogDescription>
-            上传体检单图片后，AI 会先转成文字，再为当前成员解析并更新健康数据
+            上传体检单图片后，AI 会为当前成员解析并更新健康数据
           </DialogDescription>
         </DialogHeader>
 
