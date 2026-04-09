@@ -1,16 +1,16 @@
 "use client"
 
-import { HealthEvent } from "./types"
-import { EventCard } from "./event-card"
 import { AlertCircle, CheckCircle2, Inbox } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { EventCard } from "./event-card"
+import type { HealthEvent } from "./types"
 
 interface ManagementViewProps {
   events: HealthEvent[]
   onEdit: (event: HealthEvent) => void
   onDelete: (id: string) => void
   onMarkResolved: (id: string) => void
-  onUpdateEntry: (eventId: string, entry: HealthEvent["timeline"][0]) => void
+  onAddEntry: (event: HealthEvent) => void
+  onEditEntry: (event: HealthEvent, entry: HealthEvent["timeline"][number]) => void
 }
 
 export function ManagementView({
@@ -18,22 +18,20 @@ export function ManagementView({
   onEdit,
   onDelete,
   onMarkResolved,
-  onUpdateEntry,
+  onAddEntry,
+  onEditEntry,
 }: ManagementViewProps) {
-  const activeEvents = events.filter((e) => e.status === "active")
-  const recoveredEvents = events.filter((e) => e.status === "recovered")
+  const activeEvents = events.filter((event) => event.status === "active")
+  const recoveredEvents = events.filter((event) => event.status === "recovered")
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Active Events Section */}
       <section>
         <div className="mb-4 flex items-center gap-2.5">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500/[0.07]">
             <AlertCircle className="h-3.5 w-3.5 text-red-500 dark:text-red-400" />
           </div>
-          <h2 className="text-base font-semibold text-foreground">
-            {"进行中"}
-          </h2>
+          <h2 className="text-base font-semibold text-foreground">进行中</h2>
           <span className="rounded-md bg-red-500/[0.07] px-2 py-0.5 text-xs font-medium text-red-600 dark:text-red-400">
             {activeEvents.length}
           </span>
@@ -47,7 +45,8 @@ export function ManagementView({
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onMarkResolved={onMarkResolved}
-                onUpdateEntry={onUpdateEntry}
+                onAddEntry={onAddEntry}
+                onEditEntry={onEditEntry}
               />
             ))}
           </div>
@@ -56,15 +55,12 @@ export function ManagementView({
         )}
       </section>
 
-      {/* Recovered Events Section */}
       <section>
         <div className="mb-4 flex items-center gap-2.5">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/[0.07]">
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
           </div>
-          <h2 className="text-base font-semibold text-foreground">
-            {"已康复 / 归档"}
-          </h2>
+          <h2 className="text-base font-semibold text-foreground">已康复 / 归档</h2>
           <span className="rounded-md bg-emerald-500/[0.07] px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
             {recoveredEvents.length}
           </span>
@@ -78,7 +74,8 @@ export function ManagementView({
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onMarkResolved={onMarkResolved}
-                onUpdateEntry={onUpdateEntry}
+                onAddEntry={onAddEntry}
+                onEditEntry={onEditEntry}
               />
             ))}
           </div>

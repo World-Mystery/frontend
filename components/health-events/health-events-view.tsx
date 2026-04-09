@@ -1,25 +1,34 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import {
-  Plus,
-  ChevronRight,
-  LayoutList,
-  GitBranch,
-  Search,
   AlertCircle,
-  CheckCircle2,
   CalendarClock,
+  CheckCircle2,
+  ChevronRight,
+  GitBranch,
+  LayoutList,
   Loader2,
+  Plus,
+  Search,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { ManagementView } from "./management-view"
-import { TimelineView } from "./timeline-view"
 import { EventDialog } from "./event-dialog"
+import { ManagementView } from "./management-view"
+import { RecordDialog } from "./record-dialog"
 import { ResolveDialog } from "./resolve-dialog"
-import { listHealthEvents, mapBackendEventToUI, getHealthEventRecords, getTodayDateString } from "@/lib/health-event"
-import { getStoredMemberId } from "@/lib/member"
+import { TimelineView } from "./timeline-view"
 import type { HealthEvent } from "./types"
+import { cn } from "@/lib/utils"
+import { getStoredMemberId } from "@/lib/member"
+import {
+  getHealthEventRecords,
+  getTodayDateString,
+  listHealthEvents,
+  mapBackendEventToUI,
+  mapBackendRecordToTimelineEntry,
+  sortTimelineEntries,
+  type HealthEventRecord,
+} from "@/lib/health-event"
 
 type ViewMode = "management" | "timeline"
 
@@ -36,30 +45,29 @@ export function HealthEventsView({ currentMemberName }: HealthEventsViewProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState<HealthEvent | null>(null)
   const [resolveTarget, setResolveTarget] = useState<HealthEvent | null>(null)
+  const [recordDialogOpen, setRecordDialogOpen] = useState(false)
+  const [recordDialogEvent, setRecordDialogEvent] = useState<HealthEvent | null>(null)
+  const [editingEntry, setEditingEntry] = useState<HealthEvent["timeline"][number] | null>(null)
 
-  // Load events from backend
   useEffect(() => {
     const loadEvents = async () => {
       try {
         setLoading(true)
         setError(null)
+
         const memberId = getStoredMemberId()
         if (!memberId) {
           setError("未能获取成员信息，请重新登录")
-          setLoading(false)
           return
         }
 
         const backendEvents = await listHealthEvents(memberId)
-
-        // 为每个事件加载其详细记录
         const uiEvents = await Promise.all(
-          backendEvents.map(async (event: any) => {
+          backendEvents.map(async (event) => {
             try {
               const records = await getHealthEventRecords(event.id)
               return mapBackendEventToUI(event, records)
             } catch {
-              // 如果获取记录失败，仍然返回事件但不包含详细记录
               return mapBackendEventToUI(event)
             }
           })
@@ -75,47 +83,64 @@ export function HealthEventsView({ currentMemberName }: HealthEventsViewProps) {
       }
     }
 
-    loadEvents()
+    void loadEvents()
   }, [])
 
-  // Stats
-  const activeCount = events.filter((e) => e.status === "active").length
-  const recoveredCount = events.filter((e) => e.status === "recovered").length
+  const activeCount = events.filter((event) => event.status === "active").length
+  const recoveredCount = events.filter((event) => event.status === "recovered").length
   const upcomingFollowUps = events.filter(
-    (e) =>
-      e.status === "active" &&
-      e.nextFollowUp &&
-      new Date(e.nextFollowUp).getTime() - Date.now() < 14 * 24 * 60 * 60 * 1000
+    (event) =>
+      event.status === "active" &&
+      event.nextFollowUp &&
+      new Date(event.nextFollowUp).getTime() - Date.now() < 14 * 24 * 60 * 60 * 1000
   ).length
 
-  // Search filter
   const filteredEvents = searchQuery
     ? events.filter(
-        (e) =>
-          e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          e.symptoms.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          e.medications.some((m) => m.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (e.diagnosis && e.diagnosis.toLowerCase().includes(searchQuery.toLowerCase()))
+        (event) =>
+          event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          event.symptoms.some((symptom) =>
+            symptom.toLowerCase().includes(searchQuery.toLowerCase())
+          ) ||
+          event.medications.some((medication) =>
+            medication.toLowerCase().includes(searchQuery.toLowerCase())
+          ) ||
+          (event.diagnosis &&
+            event.diagnosis.toLowerCase().includes(searchQuery.toLowerCase()))
       )
     : events
 
   const handleSaveEvent = (saved: HealthEvent) => {
-    setEvents((prev) => {
-      const existing = prev.find((e) => e.id === saved.id)
-      if (existing) {
-        return prev.map((e) => (e.id === saved.id ? saved : e))
+    setEvents((previousEvents) => {
+      const existingEvent = previousEvents.find((event) => String(event.id) === String(saved.id))
+      if (!existingEvent) {
+        return [saved, ...previousEvents]
       }
-      return [saved, ...prev]
+
+      return previousEvents.map((event) =>
+        String(event.id) === String(saved.id)
+          ? {
+              ...event,
+              ...saved,
+              timeline:
+                existingEvent.timeline.length > 0 ? existingEvent.timeline : saved.timeline,
+              resolution: saved.resolution ?? existingEvent.resolution,
+              resolvedDate: saved.resolvedDate ?? existingEvent.resolvedDate,
+            }
+          : event
+      )
     })
     setEditingEvent(null)
   }
 
   const handleDelete = (id: string) => {
-    setEvents((prev) => prev.filter((e) => String(e.id) !== id))
+    setEvents((previousEvents) =>
+      previousEvents.filter((event) => String(event.id) !== id)
+    )
   }
 
   const handleMarkResolved = (id: string) => {
-    const target = events.find((e) => String(e.id) === id)
+    const target = events.find((event) => String(event.id) === id)
     if (target) {
       setResolveTarget(target)
     }
@@ -124,17 +149,17 @@ export function HealthEventsView({ currentMemberName }: HealthEventsViewProps) {
   const handleConfirmResolve = (resolution: string) => {
     if (!resolveTarget) return
 
-    setEvents((prev) =>
-      prev.map((e) =>
-        String(e.id) === String(resolveTarget.id)
+    setEvents((previousEvents) =>
+      previousEvents.map((event) =>
+        String(event.id) === String(resolveTarget.id)
           ? {
-              ...e,
-              status: "recovered" as const,
+              ...event,
+              status: "recovered",
               resolvedDate: getTodayDateString(),
               resolution,
               nextFollowUp: undefined,
             }
-          : e
+          : event
       )
     )
     setResolveTarget(null)
@@ -145,22 +170,77 @@ export function HealthEventsView({ currentMemberName }: HealthEventsViewProps) {
     setDialogOpen(true)
   }
 
-  const handleUpdateEntry = (eventId: string, updatedEntry: HealthEvent["timeline"][0]) => {
-    setEvents((prev) =>
-      prev.map((e) =>
-        String(e.id) === eventId
-          ? {
-              ...e,
-              timeline: e.timeline.map((t) => (t.id === updatedEntry.id ? updatedEntry : t)),
-            }
-          : e
-      )
-    )
-  }
-
   const handleNewEvent = () => {
     setEditingEvent(null)
     setDialogOpen(true)
+  }
+
+  const handleAddEntry = (event: HealthEvent) => {
+    setRecordDialogEvent(event)
+    setEditingEntry(null)
+    setRecordDialogOpen(true)
+  }
+
+  const handleEditEntry = (
+    event: HealthEvent,
+    entry: HealthEvent["timeline"][number]
+  ) => {
+    setRecordDialogEvent(event)
+    setEditingEntry(entry)
+    setRecordDialogOpen(true)
+  }
+
+  const handleSaveRecord = async (savedRecord: HealthEventRecord) => {
+    if (!recordDialogEvent) return
+
+    const eventId = Number(recordDialogEvent.id)
+
+    try {
+      const records = await getHealthEventRecords(eventId)
+      const refreshedTimeline =
+        records.length > 0
+          ? sortTimelineEntries(records.map(mapBackendRecordToTimelineEntry))
+          : [mapBackendRecordToTimelineEntry(savedRecord)]
+
+      setEvents((previousEvents) =>
+        previousEvents.map((event) =>
+          Number(event.id) === eventId
+            ? {
+                ...event,
+                timeline: refreshedTimeline,
+              }
+            : event
+        )
+      )
+    } catch (err) {
+      console.error("Failed to refresh health event records:", err)
+
+      const fallbackEntry = mapBackendRecordToTimelineEntry(savedRecord)
+      setEvents((previousEvents) =>
+        previousEvents.map((event) => {
+          if (Number(event.id) !== eventId) {
+            return event
+          }
+
+          const nextTimeline = event.timeline.some((entry) => entry.id === fallbackEntry.id)
+            ? event.timeline.map((entry) =>
+                entry.id === fallbackEntry.id ? fallbackEntry : entry
+              )
+            : [
+                fallbackEntry,
+                ...event.timeline.filter((entry) => !entry.id.startsWith("t-")),
+              ]
+
+          return {
+            ...event,
+            timeline: sortTimelineEntries(nextTimeline),
+          }
+        })
+      )
+    } finally {
+      setRecordDialogEvent(null)
+      setEditingEntry(null)
+    }
   }
 
   if (error && !loading) {
@@ -169,10 +249,10 @@ export function HealthEventsView({ currentMemberName }: HealthEventsViewProps) {
         <div className="mx-auto max-w-6xl px-6 py-6">
           <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900/30 dark:bg-red-950/20">
             <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
               <div>
                 <h3 className="font-semibold text-red-900 dark:text-red-200">加载失败</h3>
-                <p className="text-sm text-red-800 dark:text-red-300 mt-1">{error}</p>
+                <p className="mt-1 text-sm text-red-800 dark:text-red-300">{error}</p>
               </div>
             </div>
           </div>
@@ -184,15 +264,13 @@ export function HealthEventsView({ currentMemberName }: HealthEventsViewProps) {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-6xl px-6 py-6">
-        {/* Page Header */}
         <div className="mb-6 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>{currentMemberName}</span>
               <ChevronRight className="h-3 w-3" />
-              <span className="text-foreground font-medium">{"健康事件"}</span>
+              <span className="font-medium text-foreground">健康事件</span>
             </div>
-            {/* title removed per design; keep breadcrumb only */}
           </div>
           <button
             onClick={handleNewEvent}
@@ -203,7 +281,6 @@ export function HealthEventsView({ currentMemberName }: HealthEventsViewProps) {
           </button>
         </div>
 
-        {/* Summary Stats */}
         <div className="mb-6 grid grid-cols-3 gap-3">
           <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card px-4 py-3.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-500/[0.07]">
@@ -234,9 +311,7 @@ export function HealthEventsView({ currentMemberName }: HealthEventsViewProps) {
           </div>
         </div>
 
-        {/* Search + View Switcher Bar */}
         <div className="mb-6 flex items-center gap-3">
-          {/* Search */}
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
             <input
@@ -247,7 +322,6 @@ export function HealthEventsView({ currentMemberName }: HealthEventsViewProps) {
             />
           </div>
 
-          {/* View Switcher */}
           <div className="flex items-center rounded-xl border border-border/60 bg-card p-1">
             <button
               onClick={() => setViewMode("management")}
@@ -276,7 +350,6 @@ export function HealthEventsView({ currentMemberName }: HealthEventsViewProps) {
           </div>
         </div>
 
-        {/* Loading State */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="flex flex-col items-center gap-2">
@@ -286,31 +359,23 @@ export function HealthEventsView({ currentMemberName }: HealthEventsViewProps) {
           </div>
         ) : filteredEvents.length === 0 ? (
           <div className="rounded-xl border border-border/60 bg-card p-8 text-center">
-            <AlertCircle className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
+            <AlertCircle className="mx-auto mb-2 h-8 w-8 text-muted-foreground/50" />
             <p className="text-sm text-muted-foreground">暂无健康事件记录</p>
           </div>
+        ) : viewMode === "management" ? (
+          <ManagementView
+            events={filteredEvents}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onMarkResolved={handleMarkResolved}
+            onAddEntry={handleAddEntry}
+            onEditEntry={handleEditEntry}
+          />
         ) : (
-          <>
-            {/* Content */}
-            {viewMode === "management" ? (
-              <ManagementView
-                events={filteredEvents}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onMarkResolved={handleMarkResolved}
-                onUpdateEntry={handleUpdateEntry}
-              />
-            ) : (
-              <TimelineView
-                events={filteredEvents}
-                onEdit={handleEdit}
-              />
-            )}
-          </>
+          <TimelineView events={filteredEvents} onEdit={handleEdit} />
         )}
       </div>
 
-      {/* Dialogs */}
       <EventDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
@@ -322,6 +387,20 @@ export function HealthEventsView({ currentMemberName }: HealthEventsViewProps) {
         onOpenChange={(open) => !open && setResolveTarget(null)}
         eventTitle={resolveTarget?.title || ""}
         onConfirm={handleConfirmResolve}
+      />
+      <RecordDialog
+        open={recordDialogOpen}
+        onOpenChange={(open) => {
+          setRecordDialogOpen(open)
+          if (!open) {
+            setRecordDialogEvent(null)
+            setEditingEntry(null)
+          }
+        }}
+        eventId={recordDialogEvent ? Number(recordDialogEvent.id) : null}
+        eventTitle={recordDialogEvent?.title || ""}
+        entry={editingEntry}
+        onSave={handleSaveRecord}
       />
     </div>
   )
