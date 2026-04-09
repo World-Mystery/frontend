@@ -56,27 +56,55 @@ function mapBackendStatusToUIStatus(backendStatus: string): UIHealthEvent["statu
   }
 }
 
-export function formatDate(dateString?: string | number): string | undefined {
-  if (!dateString) return undefined
+function formatDateParts(year: number, month: number, day: number): string {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+}
+
+export function formatDate(dateInput?: unknown): string | undefined {
+  if (!dateInput) return undefined
+
+  if (Array.isArray(dateInput) && dateInput.length >= 3) {
+    const [year, month, day] = dateInput
+    if ([year, month, day].every((value) => typeof value === "number")) {
+      return formatDateParts(year, month, day)
+    }
+  }
+
+  if (typeof dateInput === "string") {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+      return dateInput
+    }
+
+    const javaLocalDateTimeMatch = dateInput.match(
+      /^(\d{4}),(\d{1,2}),(\d{1,2})(?:,\d{1,2},\d{1,2},\d{1,2}(?:,\d+)?)?$/
+    )
+    if (javaLocalDateTimeMatch) {
+      return formatDateParts(
+        Number(javaLocalDateTimeMatch[1]),
+        Number(javaLocalDateTimeMatch[2]),
+        Number(javaLocalDateTimeMatch[3])
+      )
+    }
+
+    const isoDateMatch = dateInput.match(/^(\d{4})-(\d{2})-(\d{2})T/)
+    if (isoDateMatch) {
+      return `${isoDateMatch[1]}-${isoDateMatch[2]}-${isoDateMatch[3]}`
+    }
+  }
 
   try {
-    let date: Date
-
-    if (typeof dateString === "number") {
-      date = new Date(dateString)
-    } else if (/^\d+$/.test(dateString)) {
-      date = new Date(Number.parseInt(dateString, 10))
-    } else {
-      date = new Date(dateString)
-    }
+    const date =
+      typeof dateInput === "number"
+        ? new Date(dateInput)
+        : new Date(String(dateInput))
 
     if (Number.isNaN(date.getTime())) {
-      return String(dateString)
+      return String(dateInput)
     }
 
-    return date.toISOString().split("T")[0]
+    return formatDateParts(date.getFullYear(), date.getMonth() + 1, date.getDate())
   } catch {
-    return String(dateString)
+    return String(dateInput)
   }
 }
 
