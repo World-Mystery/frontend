@@ -22,7 +22,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
 
         {/* Footer */}
         <div className="mt-8 text-center text-xs text-muted-foreground">
-          <p>© 2024 AI健康助手. 隐私政策 | 服务条款</p>
+          <p>© 2026 AI健康助手. 隐私政策 | 服务条款</p>
         </div>
       </div>
     </PublicRoute>
