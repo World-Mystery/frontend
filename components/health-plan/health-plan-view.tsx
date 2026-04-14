@@ -1,11 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import {
-  ChevronRight,
-  Sparkles,
-  RefreshCw,
-} from "lucide-react"
+import { useEffect, useState } from "react"
+import { ChevronRight, Sparkles, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { DailyTimeline } from "./daily-timeline"
 import { PrinciplesPanel } from "./principles-panel"
@@ -16,256 +12,191 @@ import { apiFetch } from "@/lib/api-client"
 
 interface DailyScheduleVO {
   id: number
-  start_time: string | { [key: string]: number } // Can be ISO string or LocalDateTime object
-  end_time: string | { [key: string]: number }
-  title?: string // Optional, may be null from database
-  schedule_type?: string // Optional, may be null from database
-  details?: string[]
+  start_time?: string | Record<string, number> | number[] | null
+  end_time?: string | Record<string, number> | number[] | null
+  startTime?: string | Record<string, number> | number[] | null
+  endTime?: string | Record<string, number> | number[] | null
+  title?: string | null
+  schedule_type?: string | null
+  scheduleType?: string | null
+  details?: string[] | string | null
 }
 
-// Helper function to convert schedule_type to BlockCategory
-function mapScheduleTypeToCategory(scheduleType: string): BlockCategory {
-  const typeMap: Record<string, BlockCategory> = {
-    "餐饮": "meal",
-    "运动": "exercise",
-    "休息": "rest",
-    "用药": "medication",
-    "检查": "checkup",
-    "自定义": "custom",
-  }
-  return typeMap[scheduleType] || "custom"
+const scheduleTypeMap: Record<string, BlockCategory> = {
+  "\u65e9\u9910": "meal",
+  "\u5348\u9910": "meal",
+  "\u665a\u9910": "meal",
+  "\u7528\u9910": "meal",
+  "\u996e\u98df": "meal",
+  "\u8fd0\u52a8": "exercise",
+  "\u953b\u70bc": "exercise",
+  "\u5065\u8eab": "exercise",
+  "\u4f11\u606f": "rest",
+  "\u7761\u7720": "rest",
+  "\u7528\u836f": "medication",
+  "\u670d\u836f": "medication",
+  "\u68c0\u67e5": "checkup",
+  "\u590d\u67e5": "checkup",
+  "\u81ea\u5b9a\u4e49": "custom",
 }
 
-// Helper function to extract HH:MM time from various formats
-function extractTimeFromDateTime(dateTime: any): string {
-  // Handle undefined or null
-  if (!dateTime) {
-    return "08:00"
-  }
-
-  console.log("extractTimeFromDateTime input:", dateTime, "type:", typeof dateTime)
-
-  // Handle string input
-  if (typeof dateTime === "string") {
-    // Handle ISO string like "2026-03-19T12:00:00" or "2026-03-19T12:00:00.000Z"
-    if (dateTime.includes("T")) {
-      try {
-        const timePart = dateTime.substring(11, 16) // Extract "HH:MM"
-        console.log("Extracted from ISO string with T:", timePart)
-        return timePart
-      } catch (e) {
-        console.warn("Failed to extract from ISO string:", dateTime, e)
-      }
-    }
-
-    // Handle database format like "2026-03-19 12:00:00"
-    if (dateTime.includes(" ") && /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(dateTime)) {
-      try {
-        const timePart = dateTime.substring(11, 16) // Extract "HH:MM" after space
-        console.log("Extracted from database format:", timePart)
-        return timePart
-      } catch (e) {
-        console.warn("Failed to extract from database format:", dateTime, e)
-      }
-    }
-
-    // Handle already formatted time like "12:00"
-    if (/^\d{2}:\d{2}/.test(dateTime)) {
-      console.log("Using string time directly:", dateTime)
-      return dateTime.substring(0, 5)
-    }
-    console.warn("Unknown string format:", dateTime)
-    return "08:00"
-  }
-
-  // Handle number input (timestamp)
-  if (typeof dateTime === "number") {
-    const date = new Date(dateTime)
-    const hours = String(date.getHours()).padStart(2, "0")
-    const minutes = String(date.getMinutes()).padStart(2, "0")
-    return `${hours}:${minutes}`
-  }
-
-  // Handle LocalDateTime object with hour and minute fields or array-like structure
-  if (typeof dateTime === "object" && dateTime !== null) {
-    console.log("Processing object:", dateTime)
-
-    // If it's an array like [year, month, day, hour, minute, second]
-    if (Array.isArray(dateTime)) {
-      const hourFromArray = dateTime.length >= 4 ? dateTime[3] : dateTime[0]
-      const minuteFromArray = dateTime.length >= 5 ? dateTime[4] : dateTime[1]
-      const resultFromArray = `${String(hourFromArray ?? 0).padStart(2, "0")}:${String(minuteFromArray ?? 0).padStart(2, "0")}`
-      console.log("Constructed from array:", resultFromArray, "hour:", hourFromArray, "minute:", minuteFromArray)
-      return resultFromArray
-    }
-
-    // Try standard LocalDateTime properties first
-    let hour = dateTime.hour
-    let minute = dateTime.minute
-
-    // If not found, try array-like access
-    if (hour === undefined) {
-      hour = dateTime[0]
-    }
-    if (minute === undefined) {
-      minute = dateTime[1]
-    }
-
-    // If still not found, try alternative property names
-    if (hour === undefined) {
-      hour = dateTime.h ?? dateTime.hours
-    }
-    if (minute === undefined) {
-      minute = dateTime.m ?? dateTime.minutes
-    }
-
-    // Default to 0 if still not found
-    hour = hour ?? 0
-    minute = minute ?? 0
-
-    const result = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
-    console.log("Constructed from object:", result, "hour:", hour, "minute:", minute)
-    return result
-  }
-
-  console.warn("Could not extract time from:", dateTime, "type:", typeof dateTime)
-  return "08:00"
+const generatedTitleMap: Record<BlockCategory, string[]> = {
+  meal: [
+    "\u65e9\u9910",
+    "\u5348\u9910",
+    "\u665a\u9910",
+    "\u52a0\u9910",
+  ],
+  exercise: [
+    "\u8fd0\u52a8",
+    "\u953b\u70bc",
+    "\u5065\u8eab",
+    "\u6237\u5916\u6d3b\u52a8",
+  ],
+  rest: [
+    "\u4f11\u606f",
+    "\u653e\u677e",
+    "\u5348\u4f11",
+    "\u7761\u7720",
+  ],
+  medication: [
+    "\u7528\u836f",
+    "\u670d\u836f",
+    "\u836f\u7269\u63d0\u9192",
+  ],
+  checkup: [
+    "\u68c0\u67e5",
+    "\u590d\u67e5",
+    "\u76d1\u6d4b",
+  ],
+  custom: ["\u65e5\u7a0b"],
 }
 
-// Helper function to infer category from time of day
-function inferCategoryFromTime(startTime: string): BlockCategory {
-  const hour = parseInt(startTime.split(":")[0])
+function mapScheduleTypeToCategory(scheduleType?: string | null): BlockCategory {
+  if (!scheduleType) return "custom"
 
-  // Early morning (6-8): likely exercise or breakfast
-  if (hour >= 6 && hour < 8) {
-    return "exercise"
+  const normalized = scheduleType.trim()
+  if (scheduleTypeMap[normalized]) {
+    return scheduleTypeMap[normalized]
   }
-  // Breakfast time (8-10)
-  if (hour >= 8 && hour < 10) {
-    return "meal"
-  }
-  // Morning: exercise (10-12)
-  if (hour >= 10 && hour < 12) {
-    return "exercise"
-  }
-  // Lunch time (12-14)
-  if (hour >= 12 && hour < 14) {
-    return "meal"
-  }
-  // Afternoon: rest (14-16)
-  if (hour >= 14 && hour < 16) {
-    return "rest"
-  }
-  // Afternoon exercise (16-18)
-  if (hour >= 16 && hour < 18) {
-    return "exercise"
-  }
-  // Dinner time (18-20)
-  if (hour >= 18 && hour < 20) {
-    return "meal"
-  }
-  // Evening: rest (20-24)
-  if (hour >= 20 && hour < 24) {
-    return "rest"
-  }
+
+  if (normalized.includes("\u9910") || normalized.includes("\u98df")) return "meal"
+  if (normalized.includes("\u8fd0") || normalized.includes("\u953b")) return "exercise"
+  if (normalized.includes("\u4f11") || normalized.includes("\u7761")) return "rest"
+  if (normalized.includes("\u836f")) return "medication"
+  if (normalized.includes("\u67e5") || normalized.includes("\u68c0")) return "checkup"
 
   return "custom"
 }
 
-// Helper function to generate a title based on time and category
-function generateTitleFromTimeAndCategory(startTime: string, category: BlockCategory): string {
-  const categoryTitles: Record<BlockCategory, string[]> = {
-    meal: ["早餐", "午餐", "晚餐", "加餐"],
-    exercise: ["运动", "锻炼", "健身", "户外活动"],
-    rest: ["休息", "睡眠", "放松", "午睡"],
-    medication: ["用药", "服药", "吃药"],
-    checkup: ["检查", "体检", "测量"],
-    custom: ["日程"],
+function extractTimeFromDateTime(dateTime: DailyScheduleVO["start_time"]): string {
+  if (!dateTime) {
+    return "08:00"
   }
 
-  const titles = categoryTitles[category]
-  const hour = parseInt(startTime.split(":")[0])
+  if (typeof dateTime === "string") {
+    const isoMatch = dateTime.match(/(?:T|\s)(\d{2}:\d{2})/)
+    if (isoMatch?.[1]) {
+      return isoMatch[1]
+    }
 
-  // Use first title in most cases, but vary for meal type based on time
+    if (/^\d{2}:\d{2}/.test(dateTime)) {
+      return dateTime.slice(0, 5)
+    }
+
+    return "08:00"
+  }
+
+  if (Array.isArray(dateTime)) {
+    const hour = dateTime.length >= 4 ? dateTime[3] : dateTime[0]
+    const minute = dateTime.length >= 5 ? dateTime[4] : dateTime[1]
+    return `${String(hour ?? 0).padStart(2, "0")}:${String(minute ?? 0).padStart(2, "0")}`
+  }
+
+  if (typeof dateTime === "object") {
+    const hour = dateTime.hour ?? dateTime.hours ?? dateTime.h ?? dateTime[3] ?? dateTime[0] ?? 0
+    const minute = dateTime.minute ?? dateTime.minutes ?? dateTime.m ?? dateTime[4] ?? dateTime[1] ?? 0
+    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
+  }
+
+  return "08:00"
+}
+
+function inferCategoryFromTime(startTime: string): BlockCategory {
+  const hour = Number(startTime.split(":")[0])
+
+  if (hour >= 8 && hour < 10) return "meal"
+  if (hour >= 12 && hour < 14) return "meal"
+  if (hour >= 18 && hour < 20) return "meal"
+  if ((hour >= 6 && hour < 8) || (hour >= 10 && hour < 12) || (hour >= 16 && hour < 18)) return "exercise"
+  if ((hour >= 14 && hour < 16) || hour >= 20 || hour < 6) return "rest"
+
+  return "custom"
+}
+
+function generateTitleFromTimeAndCategory(startTime: string, category: BlockCategory): string {
+  const hour = Number(startTime.split(":")[0])
+
   if (category === "meal") {
-    if (hour >= 6 && hour < 10) return "早餐"
-    if (hour >= 10 && hour < 12) return "上午加餐"
-    if (hour >= 12 && hour < 14) return "午餐"
-    if (hour >= 14 && hour < 17) return "下午加餐"
-    if (hour >= 17 && hour < 22) return "晚餐"
-    return "加餐"
+    if (hour >= 6 && hour < 10) return "\u65e9\u9910"
+    if (hour >= 10 && hour < 12) return "\u4e0a\u5348\u52a0\u9910"
+    if (hour >= 12 && hour < 14) return "\u5348\u9910"
+    if (hour >= 14 && hour < 17) return "\u4e0b\u5348\u52a0\u9910"
+    if (hour >= 17 && hour < 22) return "\u665a\u9910"
   }
 
   if (category === "rest") {
-    if (hour >= 12 && hour < 14) return "午睡"
-    if (hour >= 22 || hour < 6) return "睡眠"
-    return "休息"
+    if (hour >= 12 && hour < 14) return "\u5348\u4f11"
+    if (hour >= 22 || hour < 6) return "\u7761\u7720"
   }
 
-  return titles[0]
+  return generatedTitleMap[category][0]
 }
 
-// Helper function to convert DailyScheduleVO to ScheduleBlock
-function convertToScheduleBlock(vo: any): ScheduleBlock {
-  // Handle missing start_time and end_time by generating them
-  let startTime = "08:00"
-  let endTime = "08:30"
+function normalizeDetails(details: DailyScheduleVO["details"]): string[] {
+  if (!details) return []
+  if (Array.isArray(details)) return details.filter(Boolean)
 
-  // Try to extract from start_time/startTime if they exist
-  const startSource = vo.start_time ?? vo.startTime
-  if (startSource) {
-    startTime = extractTimeFromDateTime(startSource)
+  try {
+    const parsed = JSON.parse(details)
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : []
+  } catch {
+    return details.trim() ? [details.trim()] : []
   }
+}
 
-  // Try to extract from end_time/endTime if they exist
-  const endSource = vo.end_time ?? vo.endTime
-  if (endSource) {
-    endTime = extractTimeFromDateTime(endSource)
-  }
+function convertToScheduleBlock(vo: DailyScheduleVO): ScheduleBlock {
+  const startTime = extractTimeFromDateTime(vo.start_time ?? vo.startTime)
+  const endTime = extractTimeFromDateTime(vo.end_time ?? vo.endTime)
+  let category = mapScheduleTypeToCategory(vo.schedule_type ?? vo.scheduleType)
 
-  // Determine category - try to use provided one, or infer from time
-  let category = mapScheduleTypeToCategory(vo.schedule_type || vo.scheduleType || "")
   if (category === "custom") {
-    // If no schedule_type provided, infer from time
     category = inferCategoryFromTime(startTime)
   }
 
-  // Generate title if not provided
-  let title = vo.title
-  if (!title || (typeof title === "string" && title.trim() === "")) {
-    title = generateTitleFromTimeAndCategory(startTime, category)
-  }
-
-  // Parse details - ensure it's always an array
-  let details: string[] = []
-  if (vo.details) {
-    if (typeof vo.details === "string") {
-      // If details is a string, try to parse it as JSON
-      try {
-        const parsed = JSON.parse(vo.details)
-        details = Array.isArray(parsed) ? parsed : []
-      } catch (e) {
-        // If parsing fails, treat the whole string as a single item
-        details = [vo.details]
-      }
-    } else if (Array.isArray(vo.details)) {
-      // If it's already an array, use it directly
-      details = vo.details
-    }
-  }
-
-  // If no start_time/end_time, generate based on index or use defaults
-  console.log(`Converting VO to ScheduleBlock - id: ${vo.id}, title: ${title}, category: ${category}, start: ${startTime}, end: ${endTime}, details:`, details)
+  const title =
+    typeof vo.title === "string" && vo.title.trim()
+      ? vo.title.trim()
+      : generateTitleFromTimeAndCategory(startTime, category)
 
   return {
-    id: vo.id?.toString() || Math.random().toString(),
+    id: String(vo.id),
     startTime,
     endTime,
     title,
     category,
-    details,
+    details: normalizeDetails(vo.details),
     aiGenerated: true,
   }
+}
+
+function sortSchedule(blocks: ScheduleBlock[]): ScheduleBlock[] {
+  return [...blocks].sort((a, b) => a.startTime.localeCompare(b.startTime))
+}
+
+function timeStringToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number)
+  return h * 60 + m
 }
 
 interface HealthPlanViewProps {
@@ -277,34 +208,26 @@ export function HealthPlanView({ currentMemberName }: HealthPlanViewProps) {
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [addDialogTime, setAddDialogTime] = useState("12:00")
   const [refreshingId, setRefreshingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [regeneratingAll, setRegeneratingAll] = useState(false)
 
-  // Load schedules from API on mount
   useEffect(() => {
     const initializeAndLoad = async () => {
       try {
-        // First, ensure memberId is initialized
-        const { ensureActiveMemberId, getStoredMemberId } = await import("@/lib/member")
-        console.log("Ensuring active member ID is set...")
+        const { ensureActiveMemberId } = await import("@/lib/member")
         const memberId = await ensureActiveMemberId()
-        console.log("Active member ID ensured:", memberId)
 
-        // Verify memberId is stored in localStorage
-        const storedId = getStoredMemberId()
-        console.log("Stored member ID after ensure:", storedId)
-
-        // Then load schedules
-        if (memberId) {
-          await loadSchedules()
-        } else {
-          console.error("No active member ID found after initialization")
+        if (!memberId) {
           setSchedule([])
           setLoading(false)
+          return
         }
+
+        await loadSchedules()
       } catch (error) {
-        console.error("Failed to initialize:", error)
+        console.error("Failed to initialize health plan view:", error)
         setSchedule([])
         setLoading(false)
       }
@@ -316,76 +239,28 @@ export function HealthPlanView({ currentMemberName }: HealthPlanViewProps) {
   const loadSchedules = async () => {
     try {
       setLoading(true)
-      console.log("Loading schedules from API...")
       const response = await apiFetch("/health-plan/schedules/list")
-      console.log("API response status:", response.status)
-      console.log("Response headers:", {
-        'content-type': response.headers.get('content-type'),
-      })
 
       if (!response.ok) {
-        console.error("Failed to load schedules: HTTP", response.status, response.statusText)
-        const errorText = await response.text()
-        console.error("Error response body:", errorText)
+        console.error("Failed to load schedules:", response.status, response.statusText)
         setSchedule([])
-        setLoading(false)
         return
       }
 
       const result = await response.json()
-      console.log("Loaded schedules (raw):", result)
-      console.log("Schedule data:", result.data)
-      console.log("Schedule data type:", typeof result.data)
-      console.log("Is array?", Array.isArray(result.data))
-
-      if (!result.data) {
-        console.warn("API returned no data, result:", result)
-        setSchedule([])
-        setLoading(false)
-        return
-      }
-
-      if (!Array.isArray(result.data)) {
-        console.error("API data is not an array, got:", typeof result.data, result.data)
-        setSchedule([])
-        setLoading(false)
-        return
-      }
-
-      if (result.data.length === 0) {
-        console.warn("API returned empty array")
-        setSchedule([])
-        setLoading(false)
-        return
-      }
-
-      console.log(`Processing ${result.data.length} schedules...`)
-      // Log the first item to see its structure
-      if (result.data.length > 0) {
-        console.log("First item structure:", result.data[0])
-      }
-
-      const schedules = result.data
-        .map((vo: any, index: number) => {
+      const data = Array.isArray(result.data) ? result.data : []
+      const nextSchedule = data
+        .map((vo: DailyScheduleVO) => {
           try {
-            console.log(`Converting schedule ${index}:`, vo)
-            const converted = convertToScheduleBlock(vo)
-            console.log(`Converted schedule ${index}:`, converted)
-            return converted
-          } catch (e) {
-            console.error("Failed to convert schedule block:", vo, e)
+            return convertToScheduleBlock(vo)
+          } catch (error) {
+            console.error("Failed to convert schedule block:", vo, error)
             return null
           }
         })
-        .filter((block: any): block is ScheduleBlock => block !== null)
+        .filter((block: ScheduleBlock | null): block is ScheduleBlock => block !== null)
 
-      console.log(`Successfully converted ${schedules.length} schedules`)
-      if (schedules.length > 0) {
-        setSchedule(schedules.sort((a: ScheduleBlock, b: ScheduleBlock) => a.startTime.localeCompare(b.startTime)))
-      } else {
-        console.warn("No schedules converted successfully")
-        setSchedule([])
-      }
+      setSchedule(sortSchedule(nextSchedule))
     } catch (error) {
       console.error("Failed to load schedules:", error)
       setSchedule([])
@@ -400,23 +275,19 @@ export function HealthPlanView({ currentMemberName }: HealthPlanViewProps) {
       const response = await apiFetch(`/health-plan/schedules/${id}/regenerate`, {
         method: "PUT",
       })
+
       if (!response.ok) {
-        console.error("Failed to regenerate schedule: HTTP", response.status, response.statusText)
+        console.error("Failed to regenerate schedule:", response.status, response.statusText)
         return
       }
 
       const result = await response.json()
-      console.log("Regenerated schedule:", result)
-
       if (!result.data) {
-        console.warn("API returned no data for regenerated schedule")
         return
       }
 
-      const updatedBlock = convertToScheduleBlock(result.data)
-      setSchedule((prev) =>
-        prev.map((b: ScheduleBlock) => (b.id === id ? updatedBlock : b))
-      )
+      const updatedBlock = convertToScheduleBlock(result.data as DailyScheduleVO)
+      setSchedule((prev) => sortSchedule(prev.map((block) => (block.id === id ? updatedBlock : block))))
     } catch (error) {
       console.error("Failed to regenerate schedule:", error)
     } finally {
@@ -430,38 +301,26 @@ export function HealthPlanView({ currentMemberName }: HealthPlanViewProps) {
       const response = await apiFetch("/health-plan/schedules/generate-all", {
         method: "POST",
       })
+
       if (!response.ok) {
-        console.error("Failed to regenerate all schedules: HTTP", response.status, response.statusText)
+        console.error("Failed to regenerate all schedules:", response.status, response.statusText)
         return
       }
 
       const result = await response.json()
-      console.log("Regenerated all schedules:", result)
-
-      if (!result.data) {
-        console.warn("API returned no data for regenerated schedules")
-        setSchedule([])
-        return
-      }
-
-      if (!Array.isArray(result.data)) {
-        console.error("API data is not an array:", result.data)
-        setSchedule([])
-        return
-      }
-
-      const schedules = result.data
+      const data = Array.isArray(result.data) ? result.data : []
+      const nextSchedule = data
         .map((vo: DailyScheduleVO) => {
           try {
             return convertToScheduleBlock(vo)
-          } catch (e) {
-            console.error("Failed to convert schedule block:", vo, e)
+          } catch (error) {
+            console.error("Failed to convert schedule block:", vo, error)
             return null
           }
         })
-        .filter((block: any): block is ScheduleBlock => block !== null)
+        .filter((block: ScheduleBlock | null): block is ScheduleBlock => block !== null)
 
-      setSchedule(schedules.sort((a: ScheduleBlock, b: ScheduleBlock) => a.startTime.localeCompare(b.startTime)))
+      setSchedule(sortSchedule(nextSchedule))
     } catch (error) {
       console.error("Failed to regenerate all schedules:", error)
     } finally {
@@ -469,12 +328,29 @@ export function HealthPlanView({ currentMemberName }: HealthPlanViewProps) {
     }
   }
 
-  const handleDeleteBlock = (id: string) => {
-    setSchedule((prev) => prev.filter((b) => b.id !== id))
+  const handleDeleteBlock = async (id: string) => {
+    setDeletingId(id)
+    try {
+      const response = await apiFetch(`/health-plan/schedules/${id}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        console.error("Failed to delete schedule:", response.status, response.statusText)
+        return
+      }
+
+      setSchedule((prev) => prev.filter((block) => block.id !== id))
+      setExpandedBlockId((prev) => (prev === id ? null : prev))
+    } catch (error) {
+      console.error("Failed to delete schedule:", error)
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   const handleAddBlock = (block: ScheduleBlock) => {
-    setSchedule((prev) => [...prev, block].sort((a, b) => a.startTime.localeCompare(b.startTime)))
+    setSchedule((prev) => sortSchedule([...prev, block]))
   }
 
   const handleClickTimeslot = (time: string) => {
@@ -483,43 +359,34 @@ export function HealthPlanView({ currentMemberName }: HealthPlanViewProps) {
   }
 
   const handleBlockClick = (block: ScheduleBlock) => {
-    // Toggle expand/collapse for short blocks
     const duration = timeStringToMinutes(block.endTime) - timeStringToMinutes(block.startTime)
     if (duration === 15) {
-      setExpandedBlockId(expandedBlockId === block.id ? null : block.id)
+      setExpandedBlockId((prev) => (prev === block.id ? null : block.id))
     }
-  }
-
-  // Helper function to parse time string "HH:MM" to minutes
-  function timeStringToMinutes(time: string): number {
-    const [h, m] = time.split(":").map(Number)
-    return h * 60 + m
   }
 
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-6xl px-6 py-6">
-        {/* Page Header */}
         <div className="mb-6 flex items-center">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>{currentMemberName}</span>
             <ChevronRight className="h-3 w-3" />
-            <span className="text-foreground font-medium">{"健康计划"}</span>
+            <span className="font-medium text-foreground">{"\u5065\u5eb7\u8ba1\u5212"}</span>
           </div>
         </div>
 
-        {/* AI Generated Hint + Refresh All Button */}
         <div className="mb-6 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5 rounded-xl border border-primary/15 bg-primary/[0.03] px-4 py-3 flex-1">
+          <div className="flex flex-1 items-center gap-2.5 rounded-xl border border-primary/15 bg-primary/[0.03] px-4 py-3">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/[0.1]">
               <Sparkles className="h-3.5 w-3.5 text-primary" />
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-sm text-foreground">
-                {"已根据该成员的健康档案智能生成今日计划"}
+                {"\u5df2\u6839\u636e\u8be5\u6210\u5458\u7684\u5065\u5eb7\u6863\u6848\u667a\u80fd\u751f\u6210\u4eca\u65e5\u8ba1\u5212"}
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {"每个区块均支持一键换方案"}
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {"\u6bcf\u4e2a\u65f6\u95f4\u5757\u90fd\u652f\u6301\u91cd\u751f\u6210\u548c\u4e00\u952e\u5220\u9664"}
               </p>
             </div>
           </div>
@@ -529,24 +396,23 @@ export function HealthPlanView({ currentMemberName }: HealthPlanViewProps) {
             onClick={handleRegenerateAll}
             disabled={regeneratingAll}
             className="shrink-0"
-            title="更新全部日程"
+            title={"\u66f4\u65b0\u5168\u90e8\u65e5\u7a0b"}
           >
             <RefreshCw className={cn("h-4 w-4", regeneratingAll && "animate-spin")} />
           </Button>
         </div>
 
-        {/* Main Content: Timeline + Principles Sidebar */}
-        <div className="flex gap-6 h-full">
-          {/* Left: Daily Timeline */}
-          <div className="flex-1 min-w-0">
+        <div className="flex h-full gap-6">
+          <div className="min-w-0 flex-1">
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <p className="text-muted-foreground">加载中...</p>
+                <p className="text-muted-foreground">{"\u52a0\u8f7d\u4e2d..."}</p>
               </div>
             ) : (
               <DailyTimeline
                 schedule={schedule}
                 refreshingId={refreshingId}
+                deletingId={deletingId}
                 onRefresh={handleRefreshBlock}
                 onDelete={handleDeleteBlock}
                 onClickTimeslot={handleClickTimeslot}
@@ -556,7 +422,6 @@ export function HealthPlanView({ currentMemberName }: HealthPlanViewProps) {
             )}
           </div>
 
-          {/* Right: Principles Sidebar */}
           <div className="hidden w-80 shrink-0 lg:block">
             <PrinciplesPanel />
           </div>
