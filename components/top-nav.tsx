@@ -227,9 +227,9 @@ export function TopNav({ activeNav, onNavChange, onActiveMemberChange }: TopNavP
   }
 
   return (
-    <header className="relative z-50 flex h-14 items-center justify-between border-b border-border/60 bg-white px-5 dark:bg-card">
+    <header className="relative z-50 flex h-14 items-center justify-between gap-2 border-b border-border/60 bg-white px-3 sm:gap-0 sm:px-5 dark:bg-card">
       {/* Left: Member Switcher */}
-      <div className="relative flex items-center gap-3">
+      <div className="relative flex shrink-0 items-center gap-3 sm:shrink">
         <button
           onClick={() => setShowMemberMenu(!showMemberMenu)}
           className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-accent"
@@ -310,13 +310,13 @@ export function TopNav({ activeNav, onNavChange, onActiveMemberChange }: TopNavP
       </div>
 
       {/* Center: Nav Links */}
-      <nav className="flex items-center gap-1">
+      <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:min-w-fit sm:flex-none sm:overflow-visible sm:px-0">
         {navItems.map((item) => (
           <button
             key={item.id}
             onClick={() => onNavChange(item.id)}
             className={cn(
-              "relative rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+              "relative shrink-0 whitespace-nowrap rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors sm:px-4 sm:text-sm",
               activeNav === item.id
                 ? "text-primary"
                 : "text-muted-foreground hover:text-foreground"
@@ -331,7 +331,7 @@ export function TopNav({ activeNav, onNavChange, onActiveMemberChange }: TopNavP
       </nav>
 
       {/* Right: Notification + Search */}
-      <div className="flex items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1 sm:shrink">
         <div className="relative">
           <button
             onClick={handleToggleNotifications}
@@ -538,4 +538,3 @@ export function TopNav({ activeNav, onNavChange, onActiveMemberChange }: TopNavP
     </header>
   )
 }
-
