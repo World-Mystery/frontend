@@ -39,6 +39,11 @@ const navItems = [
   { id: "plans", label: "健康计划" },
 ]
 
+const notifications = [
+  { id: "gastritis-relief", message: "胃炎是否有所缓解？", time: "2 小时前" },
+  { id: "gastritis-symptom", message: "最近饭后腹胀和反酸有没有减轻？", time: "4 小时前" },
+]
+
 interface TopNavProps {
   activeNav: string
   onNavChange: (id: string) => void
@@ -48,6 +53,7 @@ interface TopNavProps {
 export function TopNav({ activeNav, onNavChange, onActiveMemberChange }: TopNavProps) {
   const [showMemberMenu, setShowMemberMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(true)
   const [showSearch, setShowSearch] = useState(false)
   const [members, setMembers] = useState<Member[]>([])
   const [activeMemberId, setActiveMemberId] = useState<number | null>(
@@ -127,6 +133,16 @@ export function TopNav({ activeNav, onNavChange, onActiveMemberChange }: TopNavP
     setActiveMemberId(memberId)
     setStoredMemberId(memberId)
     setShowMemberMenu(false)
+  }
+
+  const handleToggleNotifications = () => {
+    setShowNotifications((previous) => {
+      const next = !previous
+      if (next) {
+        setHasUnreadNotifications(false)
+      }
+      return next
+    })
   }
 
   const refreshMembers = async (preferredNickname?: string, preferredId?: number) => {
@@ -318,11 +334,13 @@ export function TopNav({ activeNav, onNavChange, onActiveMemberChange }: TopNavP
       <div className="flex items-center gap-1">
         <div className="relative">
           <button
-            onClick={() => setShowNotifications(!showNotifications)}
+            onClick={handleToggleNotifications}
             className="relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-accent"
           >
             <Bell className="h-[18px] w-[18px] text-muted-foreground" />
-            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive" />
+            {hasUnreadNotifications && (
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive" />
+            )}
           </button>
 
           {showNotifications && (
@@ -330,20 +348,18 @@ export function TopNav({ activeNav, onNavChange, onActiveMemberChange }: TopNavP
               <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
               <div className="absolute right-0 top-full z-50 mt-1.5 w-80 rounded-xl border border-border/50 bg-white p-2 shadow-lg shadow-foreground/[0.08] dark:bg-[hsl(222,20%,14%)]">
                 <p className="px-3 py-2 text-xs font-medium text-muted-foreground">通知</p>
-                <div className="flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-accent">
-                  <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
-                  <div>
-                    <p className="text-sm text-foreground">妈妈的体检报告已解析完成</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">2 分钟前</p>
+                {notifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className="flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-accent"
+                  >
+                    <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <div>
+                      <p className="text-sm text-foreground">{notification.message}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{notification.time}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-accent">
-                  <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
-                  <div>
-                    <p className="text-sm text-foreground">请问爸爸今天血压情况如何</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">1 小时前</p>
-                  </div>
-                </div>
+                ))}
               </div>
             </>
           )}
@@ -522,6 +538,4 @@ export function TopNav({ activeNav, onNavChange, onActiveMemberChange }: TopNavP
     </header>
   )
 }
-
-
 

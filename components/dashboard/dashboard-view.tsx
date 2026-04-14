@@ -28,7 +28,6 @@ export function DashboardView({ currentMemberName }: DashboardViewProps) {
       const data = await getProfile()
       setProfile(data)
     } catch (err) {
-      console.error(err)
       toast({ title: "加载档案失败", description: err instanceof Error ? err.message : String(err), variant: "destructive" })
     } finally {
       setLoading(false)
@@ -46,7 +45,6 @@ export function DashboardView({ currentMemberName }: DashboardViewProps) {
       setProfile(data)
       toast({ title: "已保存", description: "健康档案已更新" })
     } catch (err) {
-      console.error(err)
       toast({ title: "保存失败", description: err instanceof Error ? err.message : String(err), variant: "destructive" })
     } finally {
       setSaving(false)

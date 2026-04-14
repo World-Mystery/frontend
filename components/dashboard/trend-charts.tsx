@@ -59,7 +59,7 @@ export function TrendCharts() {
         const data = await getVitalsChart()
         setGraphData(data)
       } catch (err) {
-        console.error(err)
+        setGraphData(null)
         setError(err instanceof Error ? err.message : "加载失败")
       } finally {
         setLoading(false)

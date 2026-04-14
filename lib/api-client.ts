@@ -40,12 +40,22 @@ export async function apiFetch(
     memberId: memberIdHeader || "not set",
   })
 
-  const response = await fetch(fullUrl, {
-    ...options,
-    headers,
-  })
+  try {
+    const response = await fetch(fullUrl, {
+      ...options,
+      headers,
+    })
 
-  console.log(`API Response for ${path}: ${response.status}`)
+    console.log(`API Response for ${path}: ${response.status}`)
 
-  return response
+    return response
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw error
+    }
+
+    throw new Error(`无法连接到后端服务，请确认 ${NORMALIZED_BASE_URL} 已启动`, {
+      cause: error,
+    })
+  }
 }

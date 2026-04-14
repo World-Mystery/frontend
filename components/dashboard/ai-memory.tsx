@@ -152,7 +152,6 @@ export function AiMemoryBase() {
           setMemories(data.filter((item) => item.content))
         }
       } catch (err) {
-        console.error(err)
         if (!cancelled) {
           setError(
             err instanceof Error ? err.message : "\u52a0\u8f7d AI \u8bb0\u5fc6\u5931\u8d25"
@@ -180,7 +179,6 @@ export function AiMemoryBase() {
       await deleteAiMemory(memory.id)
       setMemories((current) => current.filter((item) => item.id !== memory.id))
     } catch (err) {
-      console.error(err)
       toast({
         title: "删除失败",
         description: err instanceof Error ? err.message : "删除 AI 记忆失败",
